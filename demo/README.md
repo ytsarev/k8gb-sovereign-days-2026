@@ -1,34 +1,67 @@
 # k8gb terminal demo
 
-A full-screen audience dashboard for the existing local **A → B → A** failover demo. It shows readiness, direct authoritative DNS answers, a real caching resolver, actual HTTP responses and an observation timeline. The dashboard is read-only; run the existing failover and restore commands in a second terminal.
+An **Enter-driven command walkthrough** with a traffic pane on the right. The presentation follows the beat-and-note rhythm of the [DevOpsDays demo](https://github.com/ytsarev/devopsdays-2026-demo/blob/main/demo.sh). Every presenter command is printed with its actual context and arguments before it runs.
 
-## Try the visual preview
-
-From the repository root:
+## Rehearse the presentation
 
 ```bash
-python3 demo/dashboard.py --preview
+./demo/demo.sh stage --preview
 ```
 
-Use a terminal around **132 columns × 44 rows**, ideally full screen. Minimum: 110 × 38. Python 3.9+ with curses is sufficient on macOS/Linux; no pip packages are needed. The palette matches the slides: blue A, teal B, red failures, amber caching. `q` quits; `space` pauses the preview/replay; `r` restarts it.
+Use a terminal around **160 columns × 44 rows** (minimum 124 × 34). The launcher creates a new tmux session, selects the command pane, and leaves existing sessions and global tmux settings alone. Python 3.9+ and tmux are required; no pip packages are needed. On macOS, install tmux with `brew install tmux`; on Debian/Ubuntu, `sudo apt-get install tmux`.
 
-The 48-second preview uses **illustrative data**, prominently labelled. It demonstrates the layout and storytelling; its delays are not measured k8gb performance. It contacts no clusters and cannot be saved as a live recording. [Character-grid preview](preview.png).
+- **Enter** runs the displayed command or advances to the next beat.
+- Short notes appear above the commands; `--no-notes` hides them.
+- **q + Enter** or **Ctrl-C** stops the presenter. If it has scaled A down, it attempts to restore the captured replica count and waits for rollout.
+- The right pane is read-only. Its **q** key closes only that view.
+- `Ctrl-b`, then an arrow key switches panes; `Ctrl-b d` detaches and leaves the session running.
 
-## Prepare live observations
+Preview mode never executes Docker or Kubernetes commands. Both panes label the data as **illustrative**. Its timeline follows the Enter-driven beats: baseline, failure, cached-answer lag, traffic on B, and restoration. The sample delays are not measurements. Preview waits jump to the illustrative outcome when you press Enter to verify it.
 
-The upstream local playground must already be running with both applications ready. See [the runbook](RUNBOOK.md). This code does not provision the clusters or alter upstream files.
+![Illustrative two-pane presentation](stage-preview.svg)
+
+Without tmux, use two terminals:
+
+```bash
+# Left: visible commands and notes
+./demo/demo.sh --preview
+
+# Right: compact traffic view, following the same preview beats
+./demo/demo.sh traffic --preview
+```
+
+For a transcript, `./demo/demo.sh --preview --auto 0 --no-clear` runs the entire illustrative walkthrough without pauses. `--auto SECONDS` also works in live standalone mode for an intentional unattended rehearsal.
+
+## The seven beats
+
+| Beat | Commands and observation |
+| --- | --- |
+| 1 · Two clusters, two locations | Inspect both Deployments; capture A's original replica count. |
+| 2 · Declarative traffic steering | Inspect both Gslb resources and validate their hostname, geotags, and failover strategy. |
+| 3 · Follow the name | Query local BIND9, inspect each cluster's local targets, and verify the baseline against both authorities, the resolver, and HTTP. |
+| 4 · Remove A's ready targets | Show and execute `kubectl scale … --replicas=0` against A's demo Deployment. |
+| 5 · Follow traffic to B | Inspect EndpointSlices and both authoritative answers; wait for fresh DNS, resolver, and HTTP observations on B. |
+| 6 · Restore A | Restore the captured replica count with `kubectl scale`, then wait for rollout. |
+| 7 · Verify the return | Query both authorities and verify that the actual HTTP response returns to A. |
+
+JSON reads are explicitly labelled **selected fields** where the presenter projects a small view. The commands are printed exactly, including `--context`, namespace, and timeouts. Repeated observation checks print the `docker logs` command and explain what is being polled. The traffic pane independently performs read-only Kubernetes sampling in the background.
+
+The fault affects the **application's ready endpoints**, not the whole cluster. A's DNS stays available, making the distinction between workload readiness, authoritative publication, and client recovery visible.
+
+## Prepare the live demo
+
+The upstream local playground must already be running with both applications ready. See [the runbook](RUNBOOK.md).
 
 ```bash
 python3 demo/prepare.py --check
 python3 demo/prepare.py
-python3 demo/dashboard.py --live --record demo/recordings/rehearsal-01.jsonl
+./demo/demo.sh status
+./demo/demo.sh stage --record demo/recordings/rehearsal-01.jsonl
 ```
 
-Preparation checks the configured contexts, workload readiness, failover strategy and primary geotag. It captures both original replica counts, builds a local observer image and creates **only** `k8gb-talk-observer` on the playground's Docker network. It publishes no host ports and mounts only its generated configuration. It will not replace an existing container. Building needs image/package downloads; build and pre-pull the playground dependencies before an offline presentation.
+Preparation discovers Docker-network IPs, checks both Gslb resources, builds a local observer image, and creates only `k8gb-talk-observer`. It publishes no host ports and will not replace an existing container. Build and pre-pull dependencies before an offline presentation. The observer runs Unbound, DNS probes, and HTTP requests continuously, independently of the command pane.
 
-The Dockerfile installs Python, `dig`, and Unbound in Debian Bookworm. The resulting local image ID is captured in `demo/.runtime/config.json`. The base image and package repository can change; keep the built image for the rehearsed run.
-
-Defaults in [config.json](config.json):
+The presenter checks the baseline again and captures the replica count immediately relevant to that run. An unfinished mutation is saved in `demo/.runtime/beat-state.json` before scaling. A second presenter cannot run concurrently. A new live run refuses to overwrite an unfinished recovery record.
 
 | Component | Default |
 | --- | --- |
@@ -37,40 +70,40 @@ Defaults in [config.json](config.json):
 | Primary A / secondary B | `k3d-test-gslb1` (`eu`) / `k3d-test-gslb2` (`us`) |
 | Docker network | `k3d-action-bridge-network` |
 | Authoritative DNS | `k3d-test-gslb1-serverlb:53`, `k3d-test-gslb2-serverlb:53` |
-| Parent BIND | `k3d-edgedns-server-0:30053` |
+| Parent BIND9 | `k3d-edgedns-server-0:30053` |
 
-Preparation discovers their current Docker-network IPs. Parent BIND is a **third infrastructure cluster**, separate from the two application clusters. Its published host port is 1053; from the observer, use the server container's **NodePort 30053**. The reviewed edge cluster has no `serverlb` container.
+Parent BIND9 runs in a **third infrastructure cluster**, separate from the two application clusters. Its host port is 1053; the observer uses the server container's NodePort 30053. Settings are in [config.json](config.json); live mode uses the prepared `.runtime/config.json`. Pass `--config PATH` to use another prepared file.
 
-## Present the experiment
+Each convergence check has a 90-second bound, configurable with `--timeout`. It requires fresh observations after the action: both authoritative A-record sets and the resolver match the target IPs, and a successful HTTP response identifies the expected cluster. A timeout fails the run and triggers restoration; it is never reported as success.
 
-Keep the dashboard on the audience screen. In a second terminal:
+## Restore and finish
 
-```bash
-cd /path/to/k8gb # your upstream k8gb checkout
-REPLICAS="$(kubectl --context k3d-test-gslb1 -n test-gslb get deployment frontend-podinfo -o jsonpath='{.spec.replicas}')"
-printf 'Original primary replicas: %s\n' "$REPLICAS"
-./hack/demo-failover.sh status --yaml
-./hack/demo-failover.sh failover
-```
-
-Walk the audience through A's endpoint loss, both authoritative answers, the resolver's returned TTL, and the request history. `A` and `B` identify the response's geotag; `×` means a failed request; `?` means HTTP succeeded without a known cluster identity. The history is a stream of samples, not a throughput or availability benchmark.
-
-Then restore the original state:
+Normal completion restores A. If the terminal or tmux session is lost, recover with:
 
 ```bash
-./hack/demo-failover.sh failback "$REPLICAS"
-./hack/demo-failover.sh status
+./demo/demo.sh reset
 ```
 
-Watch actual HTTP responses return to A. `m` adds a presenter marker to the timeline and recording; it performs no cluster action. Replica changes appear independently when observed. If the operator shell is lost, the original counts are also in `demo/.runtime/config.json`; the runbook includes a direct restore command.
+Reset uses the saved context, namespace, Deployment UID, and original replica count. It refuses to alter a replacement Deployment or an unexpected replica count. If restoration fails, it retains the record for another attempt. `reset` waits for rollout; repeat DNS and HTTP verification before presenting again. Killing the process forcibly cannot run its cleanup handler.
 
-`q` closes only the dashboard. It **does not restore replicas or stop the observer**. After restoring and verifying the workload, remove the named observer when finished:
+After completion, the command pane remains visible and the traffic pane keeps sampling. Quit the traffic pane, then close that demo's tmux session. Detaching alone does not stop either pane. Once restoration is verified, stop the observer explicitly:
 
 ```bash
 docker rm -f k8gb-talk-observer
 ```
 
-This removes its cache and stops its request loop. Starting the dashboard again reuses an existing observer's warm cache. Do not restart/flush it during a measured transition.
+Removing the observer discards its resolver cache. Do not flush or restart it during a measured transition.
+
+## Full-screen dashboard
+
+The original detailed view remains available:
+
+```bash
+python3 demo/dashboard.py --preview
+python3 demo/dashboard.py --live --record demo/recordings/full-screen.jsonl
+```
+
+It needs 110 × 38 cells, preferably 132 × 44. In preview/replay, `space` pauses and `r` restarts; `m` adds an observation marker in live mode. In the Enter-controlled compact preview, pacing belongs to the presenter pane.
 
 ## What is measured
 
@@ -102,4 +135,4 @@ python3 demo/dashboard.py --preview --snapshot --at 18 --svg /tmp/k8gb-cli.svg
 python3 -m unittest discover -s demo -p 'test_*.py' -v
 ```
 
-See [validation status](VALIDATION.md). The terminal preview was exercised; live integration has **not** been rehearsed. Run the complete real A → B → A sequence, retain the recording, and verify restoration before using live mode on stage.
+See [validation status](VALIDATION.md). The Enter-driven preview, tmux layout, and automated behavior checks were exercised; live integration has **not** been rehearsed. Run the complete real A → B → A sequence, retain the recording, and verify restoration before using live mode on stage.

@@ -1,33 +1,40 @@
-# CLI demo validation
+# Demo validation
 
-Preview and logic checks were run on 20 October 2026. Live integration remains unverified.
+The Enter-driven refactor was checked on **22 October 2026**. Live integration with k8gb remains unverified: this workspace has no configured Kubernetes contexts.
 
 | Check | Result |
 | --- | --- |
-| Python 3.9 syntax compilation | Passed |
-| Automated suite | 19 tests: 16 passed, 3 loopback-network tests skipped because this environment denies socket binding |
-| DNS parsing | AA flag, multiple A records, returned TTL, SERVFAIL/NXDOMAIN, empty answer and missing response covered |
-| Readiness | True, false, unset, empty addresses, duplicate slices and API failure covered |
-| HTTP handling | Supplied-response tests verify actual response identity extraction, unknown identity, original request hostname, HTTP errors and network timeout retention |
-| Stale data / replay | Old healthy values stop displaying as current; duplicate samples ignored; live-origin metadata required for replay; existing recordings protected |
-| Layout | Tested character grids at 90×25, 110×38, 132×44 and 170×52; undersized terminal prompts for resize |
-| Interactive CLI | Started preview in a 132×44 PTY, observed updates, quit with `q`; terminal restored |
-| Visual inspection | Inspected the PNG exported from the same character grid at the illustrative cache-lag phase |
-| Live prerequisites | `prepare.py --check` stopped at Docker's permission-denied response; no image build or container creation attempted |
-| Real loopback HTTP / Unbound / Docker / k8gb failover | **Not validated in this session** |
-| Upstream checkout | `git status --short` empty after implementation; upstream files unchanged |
+| Python 3.9 syntax / Bash launcher | Passed |
+| Automated suite | **30 tests passed, no skips**, including three real loopback HTTP tests |
+| Complete presenter flow | Controlled command responses exercised baseline → scale to zero → DNS/HTTP verification → restore; original replica count of three preserved |
+| Interrupted/failed presenter | Failure or interruption after scaling triggers restoration; quitting/EOF before execution performs no mutation |
+| Recovery identity | Replacement Deployment rejected; recovery record retained; replica precondition included in each scale command |
+| Convergence | Requires fresh observations after the action, authoritative answers and resolver matching expected IPs, and successful HTTP identifying the expected cluster; stale/divergent/failed observations rejected |
+| Timeout | Raises a failure rather than claiming a successful transition |
+| Offline preview | Entire walkthrough completes without executing any Docker/Kubernetes commands or creating live recovery state |
+| tmux presentation | Exercised all seven beats with Enter in a 160 × 44 session; verified cached-answer lag/failures, traffic on B, then restoration to A in the right pane; both panes exited cleanly |
+| Compact view | Cache lag, failed samples, cluster identity, stale observations, and presenter-controlled preview pacing covered |
+| Existing observation logic | EndpointSlice handling, DNS AA/TTL/error parsing, HTTP identity, unknown identity, HTTP failures, stale data, duplicate samples, and recording/replay protections remain covered |
+| Live BIND9 / Unbound / Docker / k8gb failover | **Not rehearsed in this session** |
 
-The three skipped tests use a real local HTTP server to verify response identity, unknown identity and HTTP 503 behavior. They remain in the suite and should run in a normal terminal outside this restricted session. The passing HTTP tests use supplied responses, not a network connection.
+Run the suite from the repository root:
 
-No captured live run is included. [preview.png](preview.png) is an **illustrative character-grid export**, not live evidence. Its colors represent the intended terminal palette; the actual TUI uses the terminal's nearest 256-color entries. Generate a text/SVG snapshot with `python3 demo/dashboard.py --preview --snapshot --at 18 --svg /tmp/k8gb-cli.svg`.
+```bash
+python3 -m unittest discover -s demo -p 'test_*.py' -v
+```
 
-## Remaining integration rehearsal
+The tmux test was an **illustrative preview**. The presenter integration tests supplied controlled Kubernetes/Docker responses; they prove orchestration and recovery behavior, not an actual controller failover. The HTTP tests used a real loopback server.
 
-1. Start the already documented upstream playground; check both application clusters and the parent BIND infrastructure cluster.
-2. Run `python3 demo/prepare.py --check`, then `python3 demo/prepare.py`. Check the observer image builds and Unbound starts. Confirm the displayed hostname and geotags match the deployed resource.
-3. Open `--live --record` in a new capture file. Verify both authoritative A answers, resolver records/TTL, and actual podinfo identity. Ensure reads remain fresh; no unknown or stale initial state.
-4. Capture original replicas; run the existing failover action. Observe endpoint loss, authoritative publication and the actual request transition. Do not promise a particular delay or flush the cache.
-5. Restore the captured replica count, verify A → B → A from the observations, then replay the recording. Verify the dashboard's response stream and timing agree with the capture.
-6. Repeat from a fresh observer and from a warm-cache observer. Rehearse the talk timing. A whole-cluster outage and peer-DNS partition remain separate optional drills.
+[stage-preview.svg](stage-preview.svg) is a character-grid illustration of the tested presentation layout. [preview.png](preview.png) is the earlier full-screen illustrative layout. Neither is evidence of measured k8gb performance. No captured live rehearsal is included.
 
-The DNS/HTTP collector observes only this two-cluster local demonstration and one backend Service. It is not a generic production monitor, a cluster-count limit in k8gb, or a proof of transaction correctness.
+## Remaining live rehearsal
+
+1. Start the upstream local playground with both application clusters and the parent BIND9 infrastructure cluster.
+2. Run `python3 demo/prepare.py --check`, then `python3 demo/prepare.py`. Verify the observer builds and Unbound starts; check the configured hostname and geotags.
+3. Run `./demo/demo.sh stage --record demo/recordings/rehearsal-01.jsonl` in a terminal around 160 × 44 cells.
+4. Advance through all seven beats. Verify the baseline, EndpointSlice loss in A, authoritative publication of B, resolver behavior, and actual HTTP response from B. Preserve failed samples; do not flush the cache.
+5. Restore the original replica count and verify the return to A. Check that no `beat-state.json` recovery record remains.
+6. Replay the JSONL capture; compare its observations to what was seen live. Rehearse once from a fresh observer and once with a warm cache.
+7. Verify interruption/recovery against the actual demo workload before relying on it on stage.
+
+Whole-cluster outages, peer-DNS partitions, parent-DNS failure, and stateful recovery are separate tests. This package demonstrates two example clusters; it does not imply a two-cluster limit in k8gb.

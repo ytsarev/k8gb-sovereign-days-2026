@@ -6,6 +6,7 @@ import concurrent.futures as futures
 import curses
 import html
 import json
+import math
 from pathlib import Path
 import queue
 import subprocess
@@ -263,6 +264,84 @@ def preview_messages(config):
     return start, messages
 
 
+def render_compact(state, width, height, clock, paused=False, finished=False, cue=""):
+    """A narrow audience pane: real request identity first, DNS and readiness below."""
+    c = Canvas(width, height)
+    if width < 48 or height < 32:
+        c.text(1, 1, "k8gb / TRAFFIC", "teal", bold=True)
+        c.text(1, 3, "Enlarge this pane to 48 × 32.", "amber")
+        c.text(1, 5, "q quits; collection continues.", "muted")
+        return c
+    cfg, obs = state.config, state.latest
+    w = width - 2
+    fresh = lambda key: valid(obs.get(key), clock, cfg["stale_after"])
+    c.text(2, 0, "k8gb / TRAFFIC", "teal", bold=True)
+    mode = "LIVE" if state.mode == "LIVE" else "PREVIEW / ILLUSTRATIVE" if state.mode == "ILLUSTRATIVE PREVIEW" else "RECORDED REPLAY"
+    c.text(2, 1, mode + (" · PAUSED" if paused else ""), "green" if mode == "LIVE" else "amber", bold=True)
+    c.text(2, 3, cfg["hostname"], bold=True, width=width - 4)
+    c.text(2, 4, cue or "Fresh connections · actual response identity", "muted", width=width - 4)
+
+    c.box(1, 6, w, 8, "HTTP / SERVED BY", "teal")
+    req = obs.get("request")
+    label, fg = describe(req, clock, cfg, lambda o: (
+        "CLUSTER " + o["served_by"] if o.get("success") and o.get("served_by") else "IDENTITY UNKNOWN" if o.get("success") else "REQUEST FAILED",
+        "blue" if o.get("success") and o.get("served_by") == "A" else "teal" if o.get("success") and o.get("served_by") == "B" else "red"))
+    if req and not req.get("ok") and 0 <= clock - req["at"] <= cfg["stale_after"]:
+        label, fg = "REQUEST FAILED", "red"
+    if fresh("request") and req.get("success") and req.get("served_by"):
+        label = "CLIENT ━━━━━▶ " + label
+    c.text(3, 8, label, fg, "panel", True, width - 6)
+    detail = "HTTP %s  ·  %sms" % (req.get("status", "?"), req.get("latency_ms", "?")) if fresh("request") else age_label(req, clock)
+    c.text(3, 9, detail, "muted", "panel", width=width - 6)
+    for i, (_, outcome) in enumerate(list(state.requests)[-(width - 6):]):
+        c.text(3 + i, 11, "×" if outcome == "x" else outcome,
+               {"A": "blue", "B": "teal", "x": "red", "?": "amber"}[outcome], "panel", True)
+    c.text(3, 12, "A %s   B %s   failed %s   ? %s  →" % tuple(state.counts[k] for k in ("A", "B", "x", "?")), "muted", "panel", width=width - 6)
+
+    c.box(1, 15, w, 7, "DNS / AUTHORITY → RESOLVER", "amber")
+    for row, key, title, accent in ((17, "dns_A", "A DNS", "blue"), (18, "dns_B", "B DNS", "teal"), (19, "resolver", "Cache", "amber")):
+        data = obs.get(key)
+        label, fg = describe(data, clock, cfg, lambda o: (", ".join(addresses(o)) or "no A records", accent))
+        ttl = min((r["ttl"] for r in (data or {}).get("records", [])), default=None)
+        if fresh(key) and ttl is not None:
+            label += " · %ss" % ttl
+        c.text(3, row, title + "  " + label, fg, "panel", width=width - 6)
+    status, fg = "Waiting for fresh DNS observations", "muted"
+    if all(fresh(k) for k in ("dns_A", "dns_B", "resolver")):
+        a, b, resolver = (addresses(obs[k]) for k in ("dns_A", "dns_B", "resolver"))
+        status, fg = ("Authorities differ", "red") if a != b else ("Cache differs from authorities", "amber") if a != resolver else ("DNS answers agree", "green")
+    c.text(3, 20, status, fg, "panel", width=width - 6)
+
+    for row, key, accent in ((23, "A", "blue"), (24, "B", "teal")):
+        label, fg = describe(obs.get("ready_" + key), clock, cfg,
+                             lambda o: ("%s/%s ready endpoints" % (o["ready"], o["total"]), accent if o["ready"] else "red"))
+        c.text(2, row, "CLUSTER " + key + "  " + label, fg, width=width - 4)
+
+    if state.transport_error:
+        c.text(2, 26, "OBSERVER DISCONNECTED", "red", bold=True)
+    else:
+        c.text(2, 26, "LATEST CHANGES / UTC", "muted", bold=True)
+    events = sorted(state.events, key=lambda event: event[0])[-max(1, height - 30):]
+    for i, (ts, fg, detail) in enumerate(events):
+        c.text(2, 27 + i, utc(ts)[11:19] + " " + detail, fg, width=width - 4)
+    c.text(2, height - 2, "One character = one HTTP sample; newest →", "muted", width=width - 4)
+    c.text(2, height - 1, "q quit · read-only" if state.mode == "LIVE" else "q quit · illustrative data" if state.mode == "ILLUSTRATIVE PREVIEW" else "q quit · space pause · r restart", "muted", width=width - 4)
+    return c
+
+
+def controlled_preview(path, clock):
+    """Follow presenter cues; missing/partial files keep preview at the baseline."""
+    try:
+        cue = json.loads(path.read_text())
+        values = [float(cue[k]) for k in ("offset", "until", "at")]
+        offset, until, at = values
+        if not all(math.isfinite(v) for v in values) or not 0 <= offset <= until <= 48:
+            raise ValueError("Invalid preview cue")
+        return min(until, offset + max(0, clock - at)), clean(cue.get("beat", ""))
+    except (OSError, ValueError, KeyError, TypeError):
+        return 0, "WAITING FOR PRESENTER"
+
+
 class Recording:
     def __init__(self, path, config, start):
         # Exclusive creation protects the evidence from an earlier rehearsal.
@@ -395,7 +474,7 @@ def setup_colors():
                 paint.pairs[(fg, bg)] = index
 
 
-def interact(screen, state, messages, live, recording):
+def interact(screen, state, messages, live, recording, compact=False, control_file=None):
     setup_colors()
     try:
         curses.curs_set(0)
@@ -406,8 +485,15 @@ def interact(screen, state, messages, live, recording):
     end = max((m.get("received_at", m["data"]["at"]) - state.start for m in messages), default=0)
     while True:
         tick = time.monotonic()
+        cue = ""
+        previous = offset
         if not paused:
             offset += tick - last_tick
+        if control_file:
+            offset, cue = controlled_preview(control_file, now())
+            if offset < previous:
+                state = State(state.config, state.mode, state.start)
+                cursor = 0
         last_tick = tick
         clock = now() if live else state.start + min(offset, end)
         if live:
@@ -427,13 +513,14 @@ def interact(screen, state, messages, live, recording):
                 state.apply(messages[cursor])
                 cursor += 1
         height, width = screen.getmaxyx()
-        paint(screen, render(state, width, height, clock, paused, not live and offset >= end))
+        canvas = render_compact(state, width, height, clock, paused, not live and offset >= end, cue) if compact else render(state, width, height, clock, paused, not live and offset >= end)
+        paint(screen, canvas)
         key = screen.getch()
         if key in (ord("q"), 27):
             return
-        if key == ord(" ") and not live:
+        if key == ord(" ") and not live and not control_file:
             paused = not paused
-        if key == ord("r") and not live:
+        if key == ord("r") and not live and not control_file:
             state = State(state.config, state.mode, state.start)
             cursor, offset, paused = 0, 0, False
         if key == ord("m") and live:
@@ -456,6 +543,8 @@ def main():
     parser.add_argument("--width", type=int, default=132)
     parser.add_argument("--height", type=int, default=44)
     parser.add_argument("--svg", type=Path, help="Also export snapshot character grid as SVG")
+    parser.add_argument("--compact", action="store_true", help="Narrow traffic view for the right tmux pane")
+    parser.add_argument("--control-file", type=Path, help="Follow Enter-driven preview cues from the presenter")
     args = parser.parse_args()
     if args.record and not args.live:
         parser.error("--record requires --live; illustrative data cannot be recorded as evidence")
@@ -463,6 +552,8 @@ def main():
         parser.error("Use the live full-screen view; snapshots support preview/replay")
     if args.svg and not args.snapshot:
         parser.error("--svg requires --snapshot")
+    if args.control_file and (not args.preview or args.snapshot):
+        parser.error("--control-file requires interactive --preview")
     if args.replay:
         header, messages = replay_file(args.replay)
         cfg, start, label = header["config"], header["start"], "RECORDED REPLAY"
@@ -482,7 +573,8 @@ def main():
         for message in messages:
             if message.get("received_at", message["data"]["at"]) <= clock:
                 state.apply(message)
-        canvas = render(state, max(40, args.width), max(15, args.height), clock)
+        renderer = render_compact if args.compact else render
+        canvas = renderer(state, max(40, args.width), max(15, args.height), clock)
         print(canvas.plain())
         if args.svg:
             args.svg.write_text(canvas.svg(), encoding="utf-8")
@@ -496,7 +588,7 @@ def main():
             recording = Recording(args.record, cfg, start)
         if live:
             live.launch()
-        curses.wrapper(interact, state, messages, live, recording)
+        curses.wrapper(interact, state, messages, live, recording, args.compact, args.control_file)
     finally:
         if live:
             live.close()
