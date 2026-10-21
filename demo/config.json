@@ -1,0 +1,18 @@
+{
+  "hostname": "failover.cloud.example.com",
+  "parent_zone": "example.com",
+  "network": "k3d-action-bridge-network",
+  "observer_container": "k8gb-talk-observer",
+  "namespace": "test-gslb",
+  "deployment": "frontend-podinfo",
+  "service": "frontend-podinfo",
+  "gslb": "failover-ingress",
+  "interval": 2.0,
+  "stale_after": 10.0,
+  "clusters": {
+    "A": {"context": "k3d-test-gslb1", "geotag": "eu", "container": "k3d-test-gslb1-serverlb"},
+    "B": {"context": "k3d-test-gslb2", "geotag": "us", "container": "k3d-test-gslb2-serverlb"}
+  },
+  "parent_container": "k3d-edgedns-server-0",
+  "parent_port": 30053
+}

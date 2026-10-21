@@ -1,0 +1,27 @@
+# Publish only the final slides and demo package.
+/*
+!/.gitignore
+!/README.md
+!/slides/
+/slides/*
+!/slides/k8gb_sovereign_cloud_days_2026.pptx
+!/slides/k8gb_sovereign_cloud_days_2026_preview.pdf
+!/demo/
+
+# Local tooling and Python caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+~$*.pptx
+
+# Local credentials and demo state
+.env
+.env.*
+!.env.example
+demo/.runtime/
+demo/recordings/
