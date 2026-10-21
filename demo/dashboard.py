@@ -451,6 +451,19 @@ def paint(screen, canvas):
     screen.refresh()
 
 
+def terminal_color(value):
+    """Find the closest fixed xterm color without changing the terminal palette."""
+    rgb = tuple(int(value[n:n + 2], 16) for n in (0, 2, 4))
+    # The cube is not evenly spaced. Include the grayscale ramp so dark
+    # backgrounds do not get rounded up to bright, saturated cube entries.
+    levels = (0, 95, 135, 175, 215, 255)
+    palette = [(r, g, b) for r in levels for g in levels for b in levels]
+    palette.extend((v, v, v) for v in range(8, 239, 10))
+    # Skip the first 16 entries, whose appearance depends on the user's theme.
+    return 16 + min(range(len(palette)),
+                    key=lambda i: sum((a - b) ** 2 for a, b in zip(rgb, palette[i])))
+
+
 def setup_colors():
     paint.pairs = {}
     if not curses.has_colors():
@@ -460,10 +473,9 @@ def setup_colors():
                 "blue": 4, "teal": 6, "red": 1, "green": 2, "amber": 3}
     palette = {}
     for name, value in COLORS.items():
-        rgb = tuple(int(value[n:n + 2], 16) for n in (0, 2, 4))
         # Use existing color indices; do not modify the user's terminal palette.
         if curses.COLORS >= 256:
-            palette[name] = 16 + 36 * round(rgb[0] / 255 * 5) + 6 * round(rgb[1] / 255 * 5) + round(rgb[2] / 255 * 5)
+            palette[name] = terminal_color(value)
         else:
             palette[name] = fallback[name]
     for fg in COLORS:

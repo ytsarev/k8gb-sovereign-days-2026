@@ -14,6 +14,7 @@ The Enter-driven refactor was checked on **22 October 2026**. Live integration w
 | Offline preview | Entire walkthrough completes without executing any Docker/Kubernetes commands or creating live recovery state |
 | tmux presentation | Exercised all seven beats with Enter in a 160 × 44 session; verified cached-answer lag/failures, traffic on B, then restoration to A in the right pane; both panes exited cleanly |
 | Compact view | Cache lag, failed samples, cluster identity, stale observations, and presenter-controlled preview pacing covered |
+| Terminal colors | Captured actual ANSI output in a separate tmux preview; dark background and panel use xterm indices 234 and 236, replacing the incorrect teal/gray fills without changing the terminal palette |
 | Existing observation logic | EndpointSlice handling, DNS AA/TTL/error parsing, HTTP identity, unknown identity, HTTP failures, stale data, duplicate samples, and recording/replay protections remain covered |
 | Live BIND9 / Unbound / Docker / k8gb failover | **Not rehearsed in this session** |
 
