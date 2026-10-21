@@ -44,7 +44,7 @@ For a transcript, `./demo/demo.sh --preview --auto 0 --no-clear` runs the entire
 | 6 · Restore A | Restore the captured replica count with `kubectl scale`, then wait for rollout. |
 | 7 · Verify the return | Query both authorities and verify that the actual HTTP response returns to A. |
 
-JSON reads are explicitly labelled **selected fields** where the presenter projects a small view. The commands are printed exactly, including `--context`, namespace, and timeouts. Repeated observation checks print the `docker logs` command and explain what is being polled. The traffic pane independently performs read-only Kubernetes sampling in the background.
+Selected resource fields are displayed as **syntax-highlighted YAML**: teal keys, green strings, and amber numbers/booleans. The label identifies this as a formatted view of the JSON response used for validation; the printed `kubectl` command remains the exact command executed. Set `NO_COLOR=1` for plain YAML; redirected transcripts omit colors automatically. No pip packages are needed. Repeated observation checks print the `docker logs` command and explain what is being polled. The traffic pane independently performs read-only Kubernetes sampling in the background.
 
 The fault affects the **application's ready endpoints**, not the whole cluster. A's DNS stays available, making the distinction between workload readiness, authoritative publication, and client recovery visible.
 

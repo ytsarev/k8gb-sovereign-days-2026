@@ -6,6 +6,7 @@ import fcntl
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import shutil
 import signal
@@ -70,6 +71,33 @@ def gslb_view(data):
             "spec": data["spec"]}
 
 
+def yaml_scalar(value):
+    """Emit JSON-compatible YAML scalars, quoting ambiguous strings."""
+    if isinstance(value, str):
+        reserved = {"null", "true", "false", "yes", "no", "on", "off", "y", "n"}
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_./-]*", value) and value.lower() not in reserved:
+            return value
+    return json.dumps(value, ensure_ascii=True, allow_nan=False)
+
+
+def yaml_rows(data, indent=0):
+    """Render selected JSON fields as YAML tokens; no terminal or pip dependency."""
+    if isinstance(data, dict) and data:
+        entries = [(yaml_scalar(str(key)) + ":", value) for key, value in data.items()]
+    elif isinstance(data, list) and data:
+        entries = [("-", value) for value in data]
+    else:
+        yield [(" " * indent, ""), (yaml_scalar(data), "green" if isinstance(data, str) else "amber")]
+        return
+    for label, value in entries:
+        prefix = [(" " * indent, ""), (label, "teal")]
+        if isinstance(value, (dict, list)) and value:
+            yield prefix
+            yield from yaml_rows(value, indent + 2)
+        else:
+            yield prefix + [(" ", ""), (yaml_scalar(value), "green" if isinstance(value, str) else "amber")]
+
+
 def converged(latest, cfg, target, target_ips, since, clock):
     """Require actual fresh authority, resolver and HTTP observations after the action."""
     for source in ("dns_A", "dns_B", "resolver", "request"):
@@ -97,10 +125,13 @@ class Presenter:
         self.action_at = time.time()
         self.color = sys.stdout.isatty() and "NO_COLOR" not in os.environ
 
-    def line(self, text="", color="", bold=False):
+    def styled(self, text, color="", bold=False):
         codes = {"blue": "94", "teal": "96", "red": "91", "green": "92", "amber": "93", "muted": "2"}
         prefix = "\033[%sm" % ("1;" + codes.get(color, "0") if bold else codes.get(color, "0")) if self.color else ""
-        print(prefix + text + ("\033[0m" if self.color else ""), flush=True)
+        return prefix + text + ("\033[0m" if self.color else "")
+
+    def line(self, text="", color="", bold=False):
+        print(self.styled(text, color, bold), flush=True)
 
     def pause(self, label="Enter to run · q to stop"):
         if self.args.auto is not None:
@@ -161,8 +192,9 @@ class Presenter:
                 raise RuntimeError(clean(result.stderr or output or "Command failed", 1200))
         if view:
             data = json.loads(output)
-            self.line("  Selected fields from the JSON response:", "muted")
-            self.line(json.dumps(view(data), indent=2))
+            self.line("  Selected fields · YAML (from the JSON response)", "muted")
+            for row in yaml_rows(view(data)):
+                self.line("".join(self.styled(text, color) for text, color in row))
         else:
             # Preserve line breaks, remove terminal escapes from external output.
             for line in output.rstrip().splitlines():
