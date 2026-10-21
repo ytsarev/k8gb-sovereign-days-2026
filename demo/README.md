@@ -8,7 +8,7 @@ An **Enter-driven command walkthrough** with a traffic pane on the right. The pr
 ./demo/demo.sh stage --preview
 ```
 
-Use a terminal around **160 columns × 44 rows** (minimum 124 × 34). The launcher creates a new tmux session, selects the command pane, and leaves existing sessions and global tmux settings alone. Python 3.9+ and tmux are required; no pip packages are needed. On macOS, install tmux with `brew install tmux`; on Debian/Ubuntu, `sudo apt-get install tmux`.
+Use a terminal around **160 columns × 44 rows** (minimum 124 × 34). The launcher creates a new tmux session, selects the command pane, and leaves existing sessions and global tmux settings alone. Python 3.9+ and tmux are required; preview mode needs no pip packages. On macOS, install tmux with `brew install tmux`; on Debian/Ubuntu, `sudo apt-get install tmux`.
 
 - **Enter** runs the displayed command or advances to the next beat.
 - Short notes appear above the commands; `--no-notes` hides them.
@@ -44,7 +44,7 @@ For a transcript, `./demo/demo.sh --preview --auto 0 --no-clear` runs the entire
 | 6 · Restore A | Restore the captured replica count with `kubectl scale`, then wait for rollout. |
 | 7 · Verify the return | Query both authorities and verify that the actual HTTP response returns to A. |
 
-Selected resource fields are displayed as **syntax-highlighted YAML**: teal keys, green strings, and amber numbers/booleans. The label identifies this as a formatted view of the JSON response used for validation; the printed `kubectl` command remains the exact command executed. Set `NO_COLOR=1` for plain YAML; redirected transcripts omit colors automatically. No pip packages are needed. Repeated observation checks print the `docker logs` command and explain what is being polled. The traffic pane independently performs read-only Kubernetes sampling in the background.
+Presenter resource reads execute **`kubectl get … -o yaml`**. Selected fields from that YAML are syntax-highlighted: teal keys, green strings, and amber numbers/booleans. Field names and nesting stay unchanged, including `spec.replicas` and `status.readyReplicas`. The same YAML response supplies the validation and recovery checks; there is no second JSON fetch. Set `NO_COLOR=1` for plain YAML; redirected transcripts omit colors automatically. Repeated observation checks print the `docker logs` command and explain what is being polled. The traffic pane independently performs read-only Kubernetes sampling in the background.
 
 The fault affects the **application's ready endpoints**, not the whole cluster. A's DNS stays available, making the distinction between workload readiness, authoritative publication, and client recovery visible.
 
@@ -53,11 +53,15 @@ The fault affects the **application's ready endpoints**, not the whole cluster. 
 The upstream local playground must already be running with both applications ready. See [the runbook](RUNBOOK.md).
 
 ```bash
+python3 -m venv demo/.venv
+demo/.venv/bin/python -m pip install -r demo/requirements.txt
 python3 demo/prepare.py --check
 python3 demo/prepare.py
 ./demo/demo.sh status
 ./demo/demo.sh stage --record demo/recordings/rehearsal-01.jsonl
 ```
+
+The launcher automatically uses `demo/.venv` when present. PyYAML parses the native Kubernetes YAML in live mode; install it before presenting. The virtual environment is ignored by Git. Preview mode still works with the standard library alone.
 
 Preparation discovers Docker-network IPs, checks both Gslb resources, builds a local observer image, and creates only `k8gb-talk-observer`. It publishes no host ports and will not replace an existing container. Build and pre-pull dependencies before an offline presentation. The observer runs Unbound, DNS probes, and HTTP requests continuously, independently of the command pane.
 

@@ -5,7 +5,7 @@ The Enter-driven refactor was checked on **22 October 2026**. Live integration w
 | Check | Result |
 | --- | --- |
 | Python 3.9 syntax / Bash launcher | Passed |
-| Automated suite | **30 tests passed, no skips**, including three real loopback HTTP tests |
+| Automated suite | **31 tests passed, no skips**, including three real loopback HTTP tests |
 | Complete presenter flow | Controlled command responses exercised baseline → scale to zero → DNS/HTTP verification → restore; original replica count of three preserved |
 | Interrupted/failed presenter | Failure or interruption after scaling triggers restoration; quitting/EOF before execution performs no mutation |
 | Recovery identity | Replacement Deployment rejected; recovery record retained; replica precondition included in each scale command |
@@ -15,14 +15,16 @@ The Enter-driven refactor was checked on **22 October 2026**. Live integration w
 | tmux presentation | Exercised all seven beats with Enter in a 160 × 44 session; verified cached-answer lag/failures, traffic on B, then restoration to A in the right pane; both panes exited cleanly |
 | Compact view | Cache lag, failed samples, cluster identity, stale observations, and presenter-controlled preview pacing covered |
 | Terminal colors | Captured actual ANSI output in a separate tmux preview; dark background and panel use xterm indices 234 and 236, replacing the incorrect teal/gray fills without changing the terminal palette |
-| Resource output | Selected fields render as highlighted YAML; verified key/value colors in tmux and independently parsed representative manifests, nested lists, ambiguous strings, and escaped controls to confirm values were preserved |
+| Resource output | Presenter reads request native `-o yaml`; parsed actual output from a client-only kubectl dry run, exercised controlled YAML responses through the full flow, and verified command text plus highlighted field names in tmux. Invalid YAML stops before mutation. Preview also completed with Python site packages disabled |
 | Existing observation logic | EndpointSlice handling, DNS AA/TTL/error parsing, HTTP identity, unknown identity, HTTP failures, stale data, duplicate samples, and recording/replay protections remain covered |
 | Live BIND9 / Unbound / Docker / k8gb failover | **Not rehearsed in this session** |
 
 Run the suite from the repository root:
 
 ```bash
-python3 -m unittest discover -s demo -p 'test_*.py' -v
+python3 -m venv demo/.venv
+demo/.venv/bin/python -m pip install -r demo/requirements.txt
+demo/.venv/bin/python -m unittest discover -s demo -p 'test_*.py' -v
 ```
 
 The tmux test was an **illustrative preview**. The presenter integration tests supplied controlled Kubernetes/Docker responses; they prove orchestration and recovery behavior, not an actual controller failover. The HTTP tests used a real loopback server.

@@ -1,0 +1,2 @@
+# Parse native kubectl YAML for live presenter validation.
+PyYAML==6.0.3

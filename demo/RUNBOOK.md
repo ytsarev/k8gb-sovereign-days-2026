@@ -9,7 +9,7 @@ The upstream k8gb playground was reviewed at commit [`330d33335981b9716bc8ca2456
 The playground uses a referenced **Ingress**; the slide's declarative manifest illustrates **HTTPRoute**. Both use the failover strategy, but they are distinct route integrations.
 
 1. Start the upstream playground with its two application clusters and local BIND9 parent. Keep both configured contexts available to `kubectl`.
-2. From this repository, run `python3 demo/prepare.py --check`, then `python3 demo/prepare.py` to build/start the observer. Downloads are needed during preparation, not during the presentation.
+2. Install the live YAML parser with `python3 -m venv demo/.venv` and `demo/.venv/bin/python -m pip install -r demo/requirements.txt`. Then run `python3 demo/prepare.py --check` and `python3 demo/prepare.py` to build/start the observer. Downloads are needed during preparation, not during the presentation. The launcher uses the virtual environment automatically.
 3. Run `./demo/demo.sh status`. This prints its read-only checks; it does not inject a fault.
 4. Open a full-screen terminal around 160 × 44 cells, with a large readable font.
 5. Rehearse a complete live run and retain the recording. Live integration has not yet been validated in this workspace.

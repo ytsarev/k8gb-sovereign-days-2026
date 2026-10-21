@@ -15,7 +15,7 @@ import sys
 import textwrap
 import time
 
-from core import addresses, clean, endpoint_counts, load_config, parse_dig, utc, valid
+from core import addresses, clean, load_config, parse_dig, utc, valid
 
 HERE = Path(__file__).resolve().parent
 RUNTIME = HERE / ".runtime"
@@ -61,14 +61,37 @@ def synthetic_dns(cfg, key, hostname=None):
 
 
 def deployment_view(data):
-    return {"name": data["metadata"]["name"], "desired": data["spec"].get("replicas", 1),
-            "ready": data.get("status", {}).get("readyReplicas", 0)}
+    return {"metadata": {k: data["metadata"][k] for k in ("name", "namespace") if k in data["metadata"]},
+            "spec": {k: data["spec"][k] for k in ("replicas",) if k in data["spec"]},
+            "status": {k: data.get("status", {})[k] for k in ("readyReplicas", "availableReplicas")
+                       if k in data.get("status", {})}}
 
 
 def gslb_view(data):
     return {"apiVersion": data["apiVersion"], "kind": data["kind"],
             "metadata": {k: data["metadata"][k] for k in ("name", "namespace")},
             "spec": data["spec"]}
+
+
+def yaml_parser():
+    try:
+        import yaml
+    except ImportError:
+        raise RuntimeError("Live YAML reads need PyYAML. Run: python3 -m venv demo/.venv && "
+                           "demo/.venv/bin/python -m pip install -r demo/requirements.txt; "
+                           "then use ./demo/demo.sh") from None
+    return yaml
+
+
+def read_yaml(output):
+    yaml = yaml_parser()
+    try:
+        data = yaml.safe_load(output)
+    except yaml.YAMLError as exc:
+        raise ValueError("Invalid kubectl YAML: " + clean(exc)) from exc
+    if not isinstance(data, dict):
+        raise ValueError("Expected a Kubernetes object in the YAML response")
+    return data
 
 
 def yaml_scalar(value):
@@ -81,7 +104,7 @@ def yaml_scalar(value):
 
 
 def yaml_rows(data, indent=0):
-    """Render selected JSON fields as YAML tokens; no terminal or pip dependency."""
+    """Render selected resource fields as YAML tokens; no terminal or pip dependency."""
     if isinstance(data, dict) and data:
         entries = [(yaml_scalar(str(key)) + ":", value) for key, value in data.items()]
     elif isinstance(data, list) and data:
@@ -191,8 +214,8 @@ class Presenter:
             if result.returncode:
                 raise RuntimeError(clean(result.stderr or output or "Command failed", 1200))
         if view:
-            data = json.loads(output)
-            self.line("  Selected fields · YAML (from the JSON response)", "muted")
+            data = fixture if self.args.preview else read_yaml(output)
+            self.line("  Selected YAML fields:", "muted")
             for row in yaml_rows(view(data)):
                 self.line("".join(self.styled(text, color) for text, color in row))
         else:
@@ -200,7 +223,7 @@ class Presenter:
             for line in output.rstrip().splitlines():
                 self.line(clean(line, 4000))
         self.line()
-        return output
+        return data if view else output
 
     def cue(self, offset, until, beat):
         if self.args.preview:
@@ -208,10 +231,10 @@ class Presenter:
                       "at": time.time(), "beat": beat})
 
     def read_deployment(self, key, pause=True):
-        sample = {"metadata": {"name": self.cfg["deployment"], "uid": "preview-" + key},
+        sample = {"metadata": {"name": self.cfg["deployment"], "namespace": self.cfg["namespace"], "uid": "preview-" + key},
                   "spec": {"replicas": 1}, "status": {"readyReplicas": 1}}
-        return json.loads(self.command(kubectl(self.cfg, key, "get", "deployment", self.cfg["deployment"],
-                              "-o", "json"), sample, deployment_view, pause=pause))
+        return self.command(kubectl(self.cfg, key, "get", "deployment", self.cfg["deployment"],
+                              "-o", "yaml"), sample, deployment_view, pause=pause)
 
     def baseline(self):
         self.beat(1, "Two clusters. Two locations.",
@@ -219,11 +242,12 @@ class Presenter:
         self.cue(0, 8, "1 / BASELINE")
         for key in ("A", "B"):
             dep = self.read_deployment(key)
-            counts = deployment_view(dep)
-            if counts["desired"] < 1 or counts["ready"] != counts["desired"]:
+            desired = dep["spec"].get("replicas", 1)
+            ready = dep.get("status", {}).get("readyReplicas", 0)
+            if desired < 1 or ready != desired:
                 raise ValueError("Cluster %s must start with all desired replicas ready" % key)
             if key == "A":
-                self.original, self.uid = counts["desired"], dep["metadata"]["uid"]
+                self.original, self.uid = desired, dep["metadata"]["uid"]
         self.line("  Original A replica count: %s (restored at the end)" % self.original, "green")
 
     def steering(self):
@@ -236,8 +260,8 @@ class Presenter:
                                               "name": self.cfg["gslb"]},
                                "strategy": {"type": "failover", "primaryGeoTag": self.cfg["clusters"]["A"]["geotag"]}},
                       "status": {"geoTag": self.cfg["clusters"][key]["geotag"], "hosts": self.cfg["hostname"]}}
-            data = json.loads(self.command(kubectl(self.cfg, key, "get", "gslbs.k8gb.io", self.cfg["gslb"],
-                                    "-o", "json"), sample, gslb_view))
+            data = self.command(kubectl(self.cfg, key, "get", "gslbs.k8gb.io", self.cfg["gslb"],
+                                    "-o", "yaml"), sample, gslb_view)
             strategy = data["spec"]["strategy"]
             if strategy.get("type") != "failover" or strategy.get("primaryGeoTag") != self.cfg["clusters"]["A"]["geotag"]:
                 raise ValueError("Unexpected steering in cluster " + key)
@@ -283,7 +307,7 @@ class Presenter:
         self.beat(5, "Follow the traffic to B",
                   "A new DNS answer and a recovered client are separate observations. Cached answers can briefly retain A; keep any failed requests visible.")
         self.command(kubectl(self.cfg, "A", "get", "endpointslices", "-l", "kubernetes.io/service-name=" + self.cfg["service"],
-                            "-o", "json"), {"items": []}, endpoint_counts)
+                            "-o", "yaml"), {"apiVersion": "v1", "kind": "List", "items": []}, dict)
         for key in ("A", "B"):
             self.command(dig(self.cfg, key), synthetic_dns(self.cfg, "B"))
         self.wait_for("B", self.action_at)
@@ -326,8 +350,8 @@ class Presenter:
         cfg = saved["config"]
         # Always use the saved identity/context, including ./demo.sh reset after a restart.
         if not self.args.preview:
-            data = json.loads(self.command(kubectl(cfg, "A", "get", "deployment", cfg["deployment"], "-o", "json"),
-                                           view=deployment_view, pause=False))
+            data = self.command(kubectl(cfg, "A", "get", "deployment", cfg["deployment"], "-o", "yaml"),
+                                view=deployment_view, pause=False)
             if data["metadata"]["uid"] != saved["uid"]:
                 raise ValueError("Deployment was replaced; refusing to restore a different object")
             replicas = data["spec"].get("replicas", 1)
@@ -450,6 +474,8 @@ def main():
         parser.error("--record needs live stage or traffic mode")
     if args.command == "stage" and args.auto is not None:
         parser.error("Use --auto with run; stage is Enter-driven")
+    if not args.preview and args.command in ("run", "stage", "status", "reset"):
+        yaml_parser()  # Fail before starting a live presentation or changing workloads.
     if args.command == "traffic":
         argv = [sys.executable, str(HERE / "dashboard.py"), "--compact", "--preview" if args.preview else "--live"]
         if args.preview:

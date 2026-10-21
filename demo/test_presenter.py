@@ -11,6 +11,8 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
+import yaml
+
 import core
 import dashboard
 import presenter
@@ -25,7 +27,7 @@ def options(directory, preview=False):
 
 
 class Playground:
-    """Responses at command boundaries, including actual JSON and dig parsing."""
+    """Responses at command boundaries, including native YAML and dig parsing."""
     def __init__(self):
         self.replicas = 3
         self.uid = "deployment-a"
@@ -64,6 +66,10 @@ class Playground:
             output = "\n".join(json.dumps({"source": k, "data": v}) for k, v in observations(key).items())
         else:
             raise AssertionError("Unexpected command: " + repr(argv))
+        if argv[0] == "kubectl" and "get" in argv:
+            if argv[-2:] != ["-o", "yaml"]:
+                raise AssertionError("Presenter resource reads must request native YAML")
+            output = yaml.safe_dump(json.loads(output), sort_keys=True)
         return subprocess.CompletedProcess(argv, rc, output, "injected failure" if rc else "")
 
     def assert_current(self, argv):
@@ -107,10 +113,26 @@ class PresenterTests(unittest.TestCase):
         self.assertEqual(fake.replicas, 3)
         self.assertFalse(self.state_path.exists())
         self.assertIn("A → B → A complete", self.output.getvalue())
+        self.assertIn("replicas: 3", self.output.getvalue())
+        self.assertIn("readyReplicas: 3", self.output.getvalue())
+        self.assertNotIn("JSON response", self.output.getvalue())
+        self.assertNotIn("desired:", self.output.getvalue())
         for argv in fake.commands:
             if argv[0] == "kubectl":
                 self.assertIn("--context", argv)
                 self.assertTrue(any(a.startswith("--request-timeout=") for a in argv))
+
+    def test_invalid_yaml_stops_before_any_mutation(self):
+        for output in ("metadata: [", "- not a Kubernetes object"):
+            with self.subTest(output=output):
+                p = presenter.Presenter(CFG, options(self.directory.name))
+                result = subprocess.CompletedProcess([], 0, output, "")
+                with patch.object(presenter.subprocess, "run", return_value=result) as execute:
+                    with self.assertRaises(ValueError):
+                        p.run()
+                self.assertEqual(execute.call_count, 1)
+                self.assertEqual(execute.call_args.args[0][-2:], ["-o", "yaml"])
+                self.assertFalse(self.state_path.exists())
 
     def test_failure_after_scaling_restores_before_exit(self):
         fake = Playground()
