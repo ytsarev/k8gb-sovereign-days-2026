@@ -5,9 +5,9 @@ Checked on **22 October 2026**, including a real local k8gb failover and restora
 | Check | Result |
 | --- | --- |
 | Python 3.9 syntax / Bash launcher | Passed |
-| Automated suite | **43 tests passed, no skips**, including three real loopback HTTP tests |
+| Automated suite | **44 tests passed, no skips**, including three real loopback HTTP tests |
 | Provisioning | Rebuilt the three owned clusters with the minimal BIND9/k8gb/Ingress/Podinfo setup; verified parent DNS readiness and retried initial zone publication before launching |
-| Real local failover | Passed: baseline A → zero ready application endpoints in A → DNS/resolver/HTTP on B → original replicas restored → DNS/resolver/HTTP on A |
+| Real local failover | Repeated successfully after the null-endpoint fix: baseline A → zero ready application endpoints in A → DNS/resolver/HTTP on B → original replicas restored → DNS/resolver/HTTP on A |
 | Restoration | Verified original replica count; no unfinished `beat-state.json` remained after the successful run |
 | Recording | Real observation JSONL saved locally under ignored `demo/recordings/`; includes request failures and intermediate DNS/cache differences |
 | Ownership and isolation | Unrelated name collisions rejected before mutation; missing owned clusters can be created on retry; kubeconfigs merged into a private file without changing the default kubeconfig |
@@ -21,6 +21,7 @@ Checked on **22 October 2026**, including a real local k8gb failover and restora
 | Preview | Clearly illustrative; completes without executing Docker/Kubernetes commands or creating live recovery state |
 | tmux | Real `up --detach` launch verified with an existing tmux server: Enter executes a native YAML read; the right pane shows live DNS, endpoint readiness, and HTTP identity. Repeated launch reused the setup without restarting parent DNS; 25 requests to A and no DNS errors observed over 48 seconds |
 | Terminal output | Native `-o yaml`, highlighted selected fields, and compact EndpointSlices; presenter queries use `dig +short`, while parent DNS shows delegation records. Read-only live checks verified both clusters' answers, local targets, readiness output, and baseline convergence. Malformed YAML or invalid target addresses stop before mutation |
+| Empty EndpointSlices | Regression tests reproduce Kubernetes returning `endpoints: null` after scale-to-zero. The presenter renders `endpoints: []`, and the dashboard reports zero ready endpoints; the complete controlled flow continues through failover and restoration |
 
 Run the behavior suite:
 

@@ -23,6 +23,13 @@ failover.cloud.example.com.  5 IN A 172.20.0.6
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_null_endpoint_list_is_zero_ready_not_an_observation_error(self):
+        for item in ({}, {"endpoints": []}, {"endpoints": None}):
+            with self.subTest(item=item), patch("core.kube", return_value={"items": [item]}):
+                data = core.collect_readiness(CFG, "A")
+                self.assertTrue(data["ok"])
+                self.assertEqual((data["ready"], data["total"]), (0, 0))
+
     def test_ready_false_nil_and_empty_addresses(self):
         data = {"items": [{"endpoints": [
             {"addresses": ["1"], "conditions": {"ready": True}},

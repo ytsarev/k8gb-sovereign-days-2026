@@ -87,7 +87,7 @@ def endpointslice_view(data):
     return {"items": [{"metadata": {"name": item["metadata"]["name"]},
                        "endpoints": [{"addresses": endpoint.get("addresses", []),
                                       "conditions": {k: v for k, v in endpoint.get("conditions", {}).items() if k == "ready"}}
-                                     for endpoint in item.get("endpoints", [])]}
+                                     for endpoint in (item.get("endpoints") or [])]}
                       for item in data["items"]]}
 
 
@@ -337,7 +337,7 @@ class Presenter:
                   "A new DNS answer and a recovered client are separate observations. Cached answers can briefly retain A; keep any failed requests visible.")
         self.command(kubectl(self.cfg, "A", "get", "endpointslices", "-l", "kubernetes.io/service-name=" + self.cfg["service"],
                             "-o", "yaml"), {"apiVersion": "v1", "kind": "List", "items": [
-                                {"metadata": {"name": "frontend-podinfo-demo"}, "endpoints": []}]}, endpointslice_view)
+                                {"metadata": {"name": "frontend-podinfo-demo"}, "endpoints": None}]}, endpointslice_view)
         for key in ("A", "B"):
             self.read_dns(key, "B")
         self.wait_for("B", self.action_at)

@@ -55,7 +55,10 @@ class Playground:
                                      "spec": {"strategy": {"type": "failover", "primaryGeoTag": CFG["clusters"]["A"]["geotag"]}},
                                      "status": {"geoTag": CFG["clusters"][key]["geotag"], "hosts": CFG["hostname"]}})
             elif "endpointslices" in argv:
-                output, rc = json.dumps({"items": []}), int(self.fail_observe)
+                output = json.dumps({"items": [{"metadata": {"name": "frontend-podinfo-test"},
+                                               "endpoints": None if self.replicas == 0 else [
+                                                   {"addresses": ["10.42.0.6"], "conditions": {"ready": True}}]}]})
+                rc = int(self.fail_observe)
             else:
                 raise AssertionError("Unexpected command: " + repr(argv))
         elif argv[:2] == ["docker", "exec"]:
@@ -115,6 +118,7 @@ class PresenterTests(unittest.TestCase):
         self.assertIn("A → B → A complete", self.output.getvalue())
         self.assertIn("replicas: 3", self.output.getvalue())
         self.assertIn("readyReplicas: 3", self.output.getvalue())
+        self.assertIn("endpoints: []", self.output.getvalue())
         self.assertNotIn("JSON response", self.output.getvalue())
         self.assertNotIn("desired:", self.output.getvalue())
         for argv in fake.commands:

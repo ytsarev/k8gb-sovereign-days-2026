@@ -47,7 +47,7 @@ def endpoint_counts(data):
     """
     endpoints = {}
     for item in data.get("items", []):
-        for ep in item.get("endpoints", []):
+        for ep in (item.get("endpoints") or []):
             addresses = ep.get("addresses") or []
             if not addresses:
                 continue
