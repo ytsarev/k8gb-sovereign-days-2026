@@ -38,7 +38,7 @@ For a transcript, `./demo/demo.sh --preview --auto 0 --no-clear` runs the entire
 | --- | --- |
 | 1 · Two clusters, two locations | Inspect both Deployments; capture A's original replica count. |
 | 2 · Declarative traffic steering | Inspect both Gslb resources and validate their hostname, geotags, and failover strategy. |
-| 3 · Follow the name | Query local BIND9, inspect each cluster's local targets, and verify the baseline against both authorities, the resolver, and HTTP. |
+| 3 · Follow the name | Query local BIND9, show both CoreDNS servers resolving the application hostname to A, then inspect each cluster's local targets and verify the resolver and HTTP baseline. |
 | 4 · Remove A's ready targets | Show and execute `kubectl scale … --replicas=0` against A's demo Deployment. |
 | 5 · Follow traffic to B | Inspect EndpointSlices and both authoritative answers; wait for fresh DNS, resolver, and HTTP observations on B. |
 | 6 · Restore A | Restore the captured replica count with `kubectl scale`, then wait for rollout. |

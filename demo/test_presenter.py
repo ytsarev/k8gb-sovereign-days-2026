@@ -63,6 +63,8 @@ class Playground:
                 raise AssertionError("Unexpected command: " + repr(argv))
         elif argv[:2] == ["docker", "exec"]:
             key = "B" if "@" + CFG["clusters"]["B"]["dns_address"] in argv else "A"
+            if CFG["hostname"] in argv:
+                key = "A" if self.replicas else "B"
             output = presenter.synthetic_dns(CFG, key, short="+short" in argv)
         elif argv[:2] == ["docker", "logs"]:
             key = "A" if self.replicas else "B"

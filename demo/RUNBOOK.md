@@ -26,7 +26,7 @@ The recording filename is generated automatically. To choose one, use `up --reco
 | --- | --- |
 | 1 · Baseline | “Two clusters represent independent locations. Both run the same application.” Inspect their desired and ready replicas. |
 | 2 · Steering | “This is a standard Kubernetes custom resource. Both clusters prefer A's geotag.” Show the selected Gslb manifest fields. |
-| 3 · DNS | “Local BIND9 delegates the application zone. Both cluster authorities answer, and the client has its own cache.” Inspect the delegation and local targets, then validate A. |
+| 3 · DNS | “Local BIND9 delegates the application zone. Query either CoreDNS server for the same hostname: both return A's application IPs.” Show those two answers first, then the distinct local targets in A and B, and validate the resolver and HTTP baseline. |
 | 4 · Failure | “I remove the application's ready targets in A. Its DNS is still alive.” Read the displayed scale-to-zero command, then press Enter. |
 | 5 · Observe | “Watch the three different moments: no ready endpoints, changed authoritative answers, then a successful request to B.” Preserve any failed samples and resolver lag. |
 | 6 · Restore | “Now we restore exactly the replica count we started with.” Show the scale and rollout commands. |

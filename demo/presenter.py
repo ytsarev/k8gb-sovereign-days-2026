@@ -293,11 +293,13 @@ class Presenter:
 
     def dns(self):
         self.beat(3, "Follow the name",
-                  "The parent delegates; each cluster answers. The traffic pane uses an actual caching resolver and identifies A or B from the HTTP response.")
+                  "The parent delegates to both CoreDNS servers. Before failure, both should return A's IPs for the same hostname. Then inspect each cluster's local targets.")
         parent = ["docker", "exec", self.cfg["observer_container"], "dig", "@" + self.cfg["parent_address"],
                   "-p", str(self.cfg["parent_port"]), self.cfg["hostname"], "A", "+tcp", "+time=2",
                   "+tries=1", "+norecurse", "+noall", "+authority", "+additional"]
         self.command(parent, "cloud.example.com. 30 IN NS ns-eu.cloud.example.com.\ncloud.example.com. 30 IN NS ns-us.cloud.example.com.")
+        for key in ("A", "B"):
+            self.read_dns(key, "A")
         for key in ("A", "B"):
             hostname = "localtargets." + self.cfg["hostname"]
             output = self.read_dns(key, key, hostname)
