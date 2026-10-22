@@ -17,6 +17,8 @@ import time
 from core import (addresses, clean, collect_deployment, collect_readiness,
                   load_config, now, utc, valid)
 
+from labels import cluster_name
+
 HERE = Path(__file__).resolve().parent
 COLORS = {"bg": "111D2D", "panel": "1B2B40", "border": "35465F",
           "white": "F4F7FC", "muted": "A4B5CC", "blue": "7AA2FF",
@@ -174,7 +176,7 @@ def render(state, width, height, clock, paused=False, finished=False):
         elif a != cache:
             headline, color = "Both authorities agree. The client resolver returns a different answer.", "amber"
         elif recent("request") and obs["request"].get("success") and obs["request"].get("served_by"):
-            headline, color = "Request served by CLUSTER %s  /  both authorities and resolver agree on A records." % obs["request"]["served_by"], "green"
+            headline, color = "Request served by CLUSTER %s  /  both authorities and resolver agree on A records." % cluster_name(cfg, obs["request"]["served_by"]), "green"
         else:
             headline, color = "DNS answers agree. Check the actual application response below.", "amber"
     else:
@@ -183,7 +185,7 @@ def render(state, width, height, clock, paused=False, finished=False):
     gap, left, half = 3, 2, (width - 7) // 2
     right = left + half + gap
     for key, x, accent, role in (("A", left, "blue", "PRIMARY"), ("B", right, "teal", "SECONDARY")):
-        c.box(x, 7, half, 11, "CLUSTER %s  /  %s  /  %s" % (key, cfg["clusters"][key]["geotag"], role), accent)
+        c.box(x, 7, half, 11, "CLUSTER %s  /  %s" % (cluster_name(cfg, key), role), accent)
         def put(y, value, fg="white", bold=False):
             c.text(x + 2, y, value, fg, "panel", bold, half - 4)
         ready = obs.get("ready_" + key)
@@ -213,7 +215,7 @@ def render(state, width, height, clock, paused=False, finished=False):
     c.box(right, 19, half, 8, "APPLICATION  /  FRESH CONNECTIONS", "teal")
     request = obs.get("request")
     label, fg = describe(request, clock, cfg, lambda o: (
-        "HTTP %s  ·  %s  ·  %sms" % (o.get("status", "?"), "CLUSTER " + o["served_by"] if o.get("served_by") else "IDENTITY UNKNOWN", o.get("latency_ms", "?")),
+        "HTTP %s  ·  %s  ·  %sms" % (o.get("status", "?"), "CLUSTER " + cluster_name(cfg, o["served_by"]) if o.get("served_by") else "IDENTITY UNKNOWN", o.get("latency_ms", "?")),
         "blue" if o.get("served_by") == "A" else "teal" if o.get("served_by") == "B" else "amber"))
     if request and not request.get("ok") and clock - request["at"] <= cfg["stale_after"]:
         label, fg = "FAILED / " + clean(request.get("error", "request failed")), "red"
@@ -279,13 +281,14 @@ def render_compact(state, width, height, clock, paused=False, finished=False, cu
     c.text(2, 0, "k8gb / TRAFFIC", "teal", bold=True)
     mode = "LIVE" if state.mode == "LIVE" else "PREVIEW / ILLUSTRATIVE" if state.mode == "ILLUSTRATIVE PREVIEW" else "RECORDED REPLAY"
     c.text(2, 1, mode + (" · PAUSED" if paused else ""), "green" if mode == "LIVE" else "amber", bold=True)
+    c.text(2, 2, "Geotags: A = %s · B = %s" % tuple(clean(cfg["clusters"][k]["geotag"]) for k in ("A", "B")), "muted", width=width - 4)
     c.text(2, 3, cfg["hostname"], bold=True, width=width - 4)
     c.text(2, 4, cue or "Fresh connections · actual response identity", "muted", width=width - 4)
 
     c.box(1, 6, w, 8, "HTTP / SERVED BY", "teal")
     req = obs.get("request")
     label, fg = describe(req, clock, cfg, lambda o: (
-        "CLUSTER " + o["served_by"] if o.get("success") and o.get("served_by") else "IDENTITY UNKNOWN" if o.get("success") else "REQUEST FAILED",
+        "CLUSTER " + cluster_name(cfg, o["served_by"]) if o.get("success") and o.get("served_by") else "IDENTITY UNKNOWN" if o.get("success") else "REQUEST FAILED",
         "blue" if o.get("success") and o.get("served_by") == "A" else "teal" if o.get("success") and o.get("served_by") == "B" else "red"))
     if req and not req.get("ok") and 0 <= clock - req["at"] <= cfg["stale_after"]:
         label, fg = "REQUEST FAILED", "red"
@@ -306,6 +309,8 @@ def render_compact(state, width, height, clock, paused=False, finished=False, cu
         ttl = min((r["ttl"] for r in (data or {}).get("records", [])), default=None)
         if fresh(key) and ttl is not None:
             label += " · %ss" % ttl
+        if key != "resolver":
+            title = key[-1] + "/" + clean(cfg["clusters"][key[-1]]["geotag"]) + " DNS"
         c.text(3, row, title + "  " + label, fg, "panel", width=width - 6)
     status, fg = "Waiting for fresh DNS observations", "muted"
     if all(fresh(k) for k in ("dns_A", "dns_B", "resolver")):
@@ -316,7 +321,7 @@ def render_compact(state, width, height, clock, paused=False, finished=False, cu
     for row, key, accent in ((23, "A", "blue"), (24, "B", "teal")):
         label, fg = describe(obs.get("ready_" + key), clock, cfg,
                              lambda o: ("%s/%s ready endpoints" % (o["ready"], o["total"]), accent if o["ready"] else "red"))
-        c.text(2, row, "CLUSTER " + key + "  " + label, fg, width=width - 4)
+        c.text(2, row, "CLUSTER " + cluster_name(cfg, key) + "  " + label, fg, width=width - 4)
 
     if state.transport_error:
         c.text(2, 26, "OBSERVER DISCONNECTED", "red", bold=True)

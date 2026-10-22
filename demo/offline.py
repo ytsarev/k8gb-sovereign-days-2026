@@ -15,6 +15,7 @@ import time
 from types import SimpleNamespace
 
 from core import clean
+from labels import cluster_mapping
 from dashboard import replay_file
 from presenter import Presenter, StopDemo, save_json, yaml_rows
 from transcript import transcript_path
@@ -115,6 +116,7 @@ def play(recording, control, no_clear=False, no_notes=False):
                 ui.line("\n" + "─" * min(72, shutil.get_terminal_size().columns - 2), "teal")
                 ui.line("  " + beat, "teal", True)
                 ui.line("  RECORDED REPLAY · captured live output · commands are not executed", "amber")
+                ui.line("  " + cluster_mapping(header["config"]), "teal")
                 ui.line()
                 if not no_notes:
                     for line in textwrap.wrap(clean(event["note"], 4000), max(30, min(76, shutil.get_terminal_size().columns - 6))):

@@ -17,6 +17,7 @@ import textwrap
 import time
 
 from core import addresses, clean, load_config, utc, valid
+from labels import cluster_mapping, cluster_name
 
 HERE = Path(__file__).resolve().parent
 RUNTIME = HERE / ".runtime"
@@ -220,6 +221,7 @@ class Presenter:
         self.line("  %s / 7   %s" % (number, title.upper()), "teal", True, capture=False)
         if self.args.preview:
             self.line("  PREVIEW · illustrative output · no commands executed", "amber")
+        self.line("  " + cluster_mapping(self.cfg), "teal", capture=False)
         self.line(capture=False)
         if not self.args.no_notes:
             for line in textwrap.wrap(note, max(30, min(76, shutil.get_terminal_size().columns - 6))):
@@ -274,6 +276,7 @@ class Presenter:
                       "at": time.time(), "beat": beat})
 
     def read_deployment(self, key, pause=True):
+        self.line("  Cluster " + cluster_name(self.cfg, key) + " · deployment", "muted")
         sample = {"metadata": {"name": self.cfg["deployment"], "namespace": self.cfg["namespace"], "uid": "preview-" + key},
                   "spec": {"replicas": 1}, "status": {"readyReplicas": 1}}
         return self.command(kubectl(self.cfg, key, "get", "deployment", self.cfg["deployment"],
@@ -281,7 +284,8 @@ class Presenter:
 
     def baseline(self):
         self.beat(1, "Two clusters. Two locations.",
-                  "A is the preferred location; B runs the same service. Local BIND9 delegates the application zone to their CoreDNS servers.")
+                  "Cluster %s is primary; Cluster %s runs the same service. Local BIND9 delegates the application zone to their CoreDNS servers." %
+                  (cluster_name(self.cfg, "A"), cluster_name(self.cfg, "B")))
         self.cue(0, 8, "1 / BASELINE")
         for key in ("A", "B"):
             dep = self.read_deployment(key)
@@ -295,8 +299,10 @@ class Presenter:
 
     def steering(self):
         self.beat(2, "Traffic steering is a Kubernetes resource",
-                  "Both clusters use failover with A's geotag as primary. Kubernetes readiness determines which application targets remain eligible.")
+                  "Both manifests set primaryGeoTag: %s, which selects Cluster A. Kubernetes readiness determines which application targets remain eligible." %
+                  self.cfg["clusters"]["A"]["geotag"])
         for key in ("A", "B"):
+            self.line("  Cluster " + cluster_name(self.cfg, key) + " · Gslb manifest", "muted")
             sample = {"apiVersion": "k8gb.io/v1beta1", "kind": "Gslb",
                       "metadata": {"name": self.cfg["gslb"], "namespace": self.cfg["namespace"]},
                       "spec": {"resourceRef": {"apiVersion": "networking.k8s.io/v1", "kind": "Ingress",
@@ -332,7 +338,7 @@ class Presenter:
         self.wait_for("A", self.action_at)
 
     def read_dns(self, key, preview_target, hostname=None):
-        self.line("  Cluster %s · %s" % (key, "local application targets" if hostname else "DNS answer"), "muted")
+        self.line("  Cluster %s · %s" % (cluster_name(self.cfg, key), "local application targets" if hostname else "DNS answer"), "muted")
         output = self.command(dig(self.cfg, key, hostname), synthetic_dns(self.cfg, preview_target, hostname, short=True))
         if not output.strip():
             self.line("  No A records returned.", "amber")
@@ -368,12 +374,12 @@ class Presenter:
     def wait_for(self, target, since):
         argv = ["docker", "logs", "--since", utc(since), "--tail", "200", self.cfg["observer_container"]]
         self.show(argv)
-        self.line("  Polling these observations: both authorities + resolver + HTTP must agree on %s." % target, "muted")
+        self.line("  Polling these observations: both authorities + resolver + HTTP must agree on %s." % cluster_name(self.cfg, target), "muted")
         self.pause("Enter to verify the observed transition · q to stop")
         if self.args.preview:
             self.cue(26 if target == "B" else 46 if self.restored else 8,
                      30 if target == "B" else 48 if self.restored else 8, "5 / TRAFFIC ON B" if target == "B" else "TRAFFIC ON A")
-            self.line("  PREVIEW: authorities → %s; resolver → %s; HTTP 200 from %s" % (target, target, target), "amber")
+            self.line("  PREVIEW: authorities → %s; resolver → %s; HTTP 200 from %s" % (cluster_name(self.cfg, target), cluster_name(self.cfg, target), cluster_name(self.cfg, target)), "amber")
             return
         deadline = time.monotonic() + self.args.timeout
         latest = {}
@@ -390,7 +396,7 @@ class Presenter:
                 except (ValueError, KeyError, TypeError):
                     continue
             if converged(latest, self.cfg, target, self.targets[target], since, time.time()):
-                self.line("  Verified: both authorities + resolver → %s; HTTP %s from %s." % (target, latest["request"].get("status", "?"), target), "green")
+                self.line("  Verified: both authorities + resolver → %s; HTTP %s from %s." % (cluster_name(self.cfg, target), latest["request"].get("status", "?"), cluster_name(self.cfg, target)), "green")
                 return
             self.line("  Waiting for fresh observations on %s… %ss remaining" % (target, max(0, int(deadline - time.monotonic()))), "muted")
             time.sleep(2)

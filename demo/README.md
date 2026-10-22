@@ -34,6 +34,8 @@ For a transcript, `./demo/demo.sh --preview --auto 0 --no-clear` runs the entire
 
 ## The seven beats
 
+The presentation uses **Cluster A · `eu` (primary)** and **Cluster B · `us` (secondary)**. The letters match the deck; the geotags match the manifests, DNS names, and HTTP responses. `primaryGeoTag: eu` therefore selects Cluster A. Both panes display the mapping, including during offline playback.
+
 | Beat | Commands and observation |
 | --- | --- |
 | 1 · Two clusters, two locations | Inspect both Deployments; capture A's original replica count. |
