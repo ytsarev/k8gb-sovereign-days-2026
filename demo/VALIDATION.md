@@ -20,6 +20,7 @@ Checked on **22 October 2026**, including a real local k8gb failover and restora
 | Timeout | Failed convergence returns an error and attempts restoration; it is not reported as a successful transition |
 | Preview | Clearly illustrative; completes without executing Docker/Kubernetes commands or creating live recovery state |
 | tmux | Real `up --detach` launch verified with an existing tmux server: Enter executes a native YAML read; the right pane shows live DNS, endpoint readiness, and HTTP identity. Repeated launch reused the setup without restarting parent DNS; 25 requests to A and no DNS errors observed over 48 seconds |
+| Completion display | Completed a separate tmux preview with status 0: final output remains visible with no exit banner. Verified nonzero exits retain their status; the setting is local to the demo window |
 | Terminal output | Native `-o yaml`, highlighted selected fields, and compact EndpointSlices; presenter queries use `dig +short`, while parent DNS shows delegation records. Read-only live checks verified both clusters' answers, local targets, readiness output, and baseline convergence. Malformed YAML or invalid target addresses stop before mutation |
 | Empty EndpointSlices | Regression tests reproduce Kubernetes returning `endpoints: null` after scale-to-zero. The presenter renders `endpoints: []`, and the dashboard reports zero ready endpoints; the complete controlled flow continues through failover and restoration |
 

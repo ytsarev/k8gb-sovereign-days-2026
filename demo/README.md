@@ -103,7 +103,7 @@ Normal completion restores A. If the terminal or tmux session is lost, recover w
 
 Reset uses the saved context, namespace, Deployment UID, and original replica count. It refuses to alter a replacement Deployment or an unexpected replica count. If restoration fails, it retains the record for another attempt. `reset` waits for rollout; repeat DNS and HTTP verification before presenting again. Killing the process forcibly cannot run its cleanup handler.
 
-After completion, the command pane remains visible and the traffic pane keeps sampling. Quit the traffic pane, then close that demo's tmux session. Detaching alone does not stop either pane. Once restoration is verified, stop the observer explicitly:
+After completion, the command pane remains visible on the final result, without tmux's exit banner. A nonzero exit still shows its status. The traffic pane keeps sampling. Quit the traffic pane, then close that demo's tmux session. Detaching alone does not stop either pane. Once restoration is verified, stop the observer explicitly:
 
 ```bash
 docker rm -f k8gb-talk-observer

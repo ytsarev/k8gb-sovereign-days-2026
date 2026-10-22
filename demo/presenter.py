@@ -469,6 +469,8 @@ def stage(args):
                          "-c", str(HERE.parent), "exec " + shlex.join(left))
         created = True
         tmux("set-window-option", "-t", session + ":demo", "remain-on-exit", "on")
+        tmux("set-window-option", "-t", session + ":demo", "remain-on-exit-format",
+             "#{?pane_dead_status,Command exited with status #{pane_dead_status}.,}")
         right_pane = tmux("split-window", "-h", "-P", "-F", "#{pane_id}", "-p", "44", "-t", left_pane,
                           "-c", str(HERE.parent), "exec " + shlex.join(right))
         tmux("set-window-option", "-t", session + ":demo", "pane-border-status", "top")
