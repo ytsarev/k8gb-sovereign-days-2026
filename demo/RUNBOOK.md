@@ -9,7 +9,7 @@ The launcher provisions the upstream playground pinned at commit [`330d33335981b
 The playground uses a referenced **Ingress**; the slide's declarative manifest illustrates **HTTPRoute**. Both use the failover strategy, but they are distinct route integrations.
 
 1. Start Docker and install any missing CLI prerequisites listed in [the README](README.md#run-the-real-demo).
-2. Run `./demo/demo.sh setup`. This creates all three clusters, installs the playground and observer, and verifies real DNS and HTTP traffic. Rerunning it reuses resources owned by this checkout.
+2. Run `./demo/demo.sh setup`. This creates all three clusters, installs the playground and observer, and verifies real DNS and HTTP traffic. Add `--merge-kubeconfig` to make the contexts available in `~/.kube/config` for another terminal. Rerunning setup reuses resources owned by this checkout.
 3. Run `./demo/demo.sh rehearse`. This automatically executes the full A → B → A sequence, restores the original replicas, and saves a new JSONL recording. A failed transition returns a nonzero status.
 4. Open a full-screen terminal around 160 × 44 cells, with a large readable font.
 5. Rehearse once using Enter and the traffic pane, and retain the recording. Review [validation status](VALIDATION.md) for what has been exercised.

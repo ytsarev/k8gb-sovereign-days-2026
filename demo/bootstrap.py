@@ -14,6 +14,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from types import SimpleNamespace
 
@@ -184,6 +185,57 @@ def ensure_clusters():
     return ids
 
 
+def merge_kubeconfig():
+    """Publish demo contexts to the user's default config after successful setup."""
+    import yaml
+    # KUBECONFIG points to the private playground by now. This opt-in always
+    # targets ~/.kube/config, preserving a symlink if the user has one there.
+    path = (Path.home() / ".kube/config").resolve()
+    original = path.read_bytes() if path.exists() else None
+    config = yaml.safe_load(original) if original else {}
+    config = {} if config is None else config
+    if not isinstance(config, dict):
+        raise ValueError("Expected a kubeconfig mapping in " + str(path))
+    demo = yaml.safe_load((RUNTIME / "kubeconfig").read_text())
+    for field in ("clusters", "users", "contexts"):
+        existing = config.get(field) or []
+        if not isinstance(existing, list) or any(not isinstance(e, dict) or not e.get("name") for e in existing):
+            raise ValueError("Invalid kubeconfig %s in %s" % (field, path))
+        updates = {entry["name"]: entry for entry in demo[field]}
+        if field == "contexts":
+            previous = {entry["name"]: entry.get("context", {}) for entry in existing}
+            for name in ("k3d-test-gslb1", "k3d-test-gslb2"):
+                updates[name]["context"]["namespace"] = previous.get(name, {}).get("namespace", "test-gslb")
+        config[field] = [updates.pop(entry["name"], entry) for entry in existing] + list(updates.values())
+    config.setdefault("apiVersion", "v1")
+    config.setdefault("kind", "Config")
+    if not config.get("current-context"):
+        config["current-context"] = "k3d-test-gslb1"
+    if original and yaml.safe_load(original) == config:
+        step("Demo contexts already available in " + str(path))
+        return
+    rendered = yaml.safe_dump(config, sort_keys=False)
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    temporary = None
+    try:
+        # Stage the complete file with private permissions before replacing it.
+        with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, prefix=".k8gb-config-", delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(rendered)
+        if original is not None:
+            backup = path.with_name(path.name + ".before-k8gb-" + str(time.time_ns()))
+            fd = os.open(str(backup), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(original)
+            print("Kubeconfig backup: " + str(backup), flush=True)
+        os.replace(temporary, path)
+    finally:
+        if temporary and temporary.exists():
+            temporary.unlink()
+    step("Demo contexts merged into " + str(path))
+    print("Current context: " + config["current-context"], flush=True)
+
+
 def deploy(ids, refresh=False):
     marker = RUNTIME / "deployed.json"
     expected = {"commit": COMMIT, "version": VERSION, "clusters": ids, "recipe": 3}
@@ -332,6 +384,8 @@ def main():
     parser.add_argument("--detach", action="store_true", help="up: create tmux panes without attaching")
     parser.add_argument("--record", type=Path, help="New JSONL recording path; generated automatically by default")
     parser.add_argument("--refresh", action="store_true", help="Reapply the pinned Helm releases and demo manifests")
+    parser.add_argument("--merge-kubeconfig", action="store_true",
+                        help="Also merge demo contexts into ~/.kube/config; preserve other contexts and the current selection")
     parser.add_argument("--timeout", type=int, default=180, help="Seconds allowed for each DNS/HTTP transition")
     args = parser.parse_args()
     if not 1 <= args.timeout <= 600:
@@ -359,6 +413,8 @@ def main():
             ids = ensure_clusters()
             deploy(ids, args.refresh)
             cfg = verify_and_prepare(args.timeout)
+            if args.merge_kubeconfig:
+                merge_kubeconfig()
         if args.command == "rehearse":
             rehearse(cfg, path, args.timeout)
     print("\nLocal demo ready. Kubernetes access: " + str(RUNTIME / "kubeconfig"), flush=True)

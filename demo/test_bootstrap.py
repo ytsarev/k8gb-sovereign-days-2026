@@ -10,6 +10,8 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
+import yaml
+
 import bootstrap
 import prepare
 import presenter
@@ -75,6 +77,120 @@ class SetupTests(unittest.TestCase):
         config = yaml.safe_load(path.read_text())
         self.assertEqual([entry["name"] for entry in config["contexts"]],
                          ["k3d-edgedns", "k3d-test-gslb1", "k3d-test-gslb2"])
+
+    def demo_kubeconfig(self):
+        config = {"apiVersion": "v1", "kind": "Config", "current-context": "k3d-test-gslb2",
+                  "clusters": [], "users": [], "contexts": []}
+        for cluster, _ in bootstrap.CLUSTERS:
+            name = "k3d-" + cluster
+            config["clusters"].append({"name": name, "cluster": {"server": "https://127.0.0.1:12345"}})
+            config["users"].append({"name": name, "user": {"token": "demo-test-token"}})
+            config["contexts"].append({"name": name, "context": {"cluster": name, "user": name}})
+        (self.runtime / "kubeconfig").write_text(yaml.safe_dump(config))
+
+    def test_merge_creates_default_config_despite_private_kubeconfig_environment(self):
+        self.demo_kubeconfig()
+        home = self.runtime / "home"
+        private = str(self.runtime / "kubeconfig")
+        with patch.object(bootstrap.Path, "home", return_value=home), patch.dict(os.environ, {"KUBECONFIG": private}):
+            bootstrap.merge_kubeconfig()
+            self.assertEqual(os.environ["KUBECONFIG"], private)
+        path = home / ".kube/config"
+        config = yaml.safe_load(path.read_text())
+        self.assertEqual(config["current-context"], "k3d-test-gslb1")
+        self.assertEqual(len(config["contexts"]), 3)
+        for entry in config["contexts"]:
+            if entry["name"] != "k3d-edgedns":
+                self.assertEqual(entry["context"]["namespace"], "test-gslb")
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(path.parent.stat().st_mode & 0o777, 0o700)
+        self.assertEqual(list(path.parent.glob("config.before-k8gb-*")), [])
+
+    def test_merge_refreshes_demo_preserves_other_settings_and_is_idempotent(self):
+        self.demo_kubeconfig()
+        home = self.runtime / "home"
+        path = home / ".kube/config"
+        path.parent.mkdir(parents=True)
+        old = {"current-context": "work", "preferences": {"colors": True},
+               "clusters": [{"name": "work", "cluster": {"server": "https://work.example", "certificate-authority": "ca.pem"}},
+                            {"name": "k3d-test-gslb1", "cluster": {"server": "https://old.example"}}],
+               "users": [{"name": "work", "user": {"exec": {"command": "auth-helper"}}}],
+               "contexts": [{"name": "work", "context": {"cluster": "work", "user": "work", "namespace": "mine"}},
+                            {"name": "k3d-test-gslb1", "context": {"cluster": "k3d-test-gslb1", "namespace": "custom"}}]}
+        original = yaml.safe_dump(old).encode()
+        path.write_bytes(original)
+        with patch.object(bootstrap.Path, "home", return_value=home):
+            bootstrap.merge_kubeconfig()
+            merged = path.read_bytes()
+            bootstrap.merge_kubeconfig()
+        self.assertEqual(path.read_bytes(), merged)
+        config = yaml.safe_load(merged)
+        self.assertEqual(config["current-context"], "work")
+        self.assertEqual(config["preferences"], old["preferences"])
+        for field in ("clusters", "users", "contexts"):
+            self.assertEqual(config[field][0], old[field][0])
+        self.assertEqual(config["clusters"][1]["cluster"]["server"], "https://127.0.0.1:12345")
+        self.assertEqual(config["contexts"][1]["context"]["namespace"], "custom")
+        self.assertEqual(len(config["contexts"]), 4)
+        backups = list(path.parent.glob("config.before-k8gb-*"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_bytes(), original)
+        self.assertEqual(backups[0].stat().st_mode & 0o777, 0o600)
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_merge_rejects_invalid_existing_config_without_overwriting_it(self):
+        self.demo_kubeconfig()
+        home = self.runtime / "home"
+        path = home / ".kube/config"
+        path.parent.mkdir(parents=True)
+        for original in (b"- not-a-config\n", b"contexts: not-a-list\n"):
+            with self.subTest(original=original):
+                path.write_bytes(original)
+                with patch.object(bootstrap.Path, "home", return_value=home), self.assertRaises(ValueError):
+                    bootstrap.merge_kubeconfig()
+                self.assertEqual(path.read_bytes(), original)
+                self.assertEqual(list(path.parent.glob("config.before-k8gb-*")), [])
+
+    def test_failed_atomic_replace_preserves_original_and_symlink(self):
+        self.demo_kubeconfig()
+        home = self.runtime / "home"
+        path = home / ".kube/config"
+        path.parent.mkdir(parents=True)
+        target = path.with_name("shared-config")
+        original = b"apiVersion: v1\nkind: Config\ncurrent-context: work\n"
+        target.write_bytes(original)
+        path.symlink_to(target)
+        with patch.object(bootstrap.Path, "home", return_value=home), \
+                patch.object(bootstrap.os, "replace", side_effect=OSError("replace failed")), \
+                self.assertRaisesRegex(OSError, "replace failed"):
+            bootstrap.merge_kubeconfig()
+        self.assertTrue(path.is_symlink())
+        self.assertEqual(target.read_bytes(), original)
+        self.assertEqual(list(path.parent.glob(".k8gb-config-*")), [])
+        with patch.object(bootstrap.Path, "home", return_value=home):
+            bootstrap.merge_kubeconfig()
+        self.assertTrue(path.is_symlink())
+        self.assertEqual(len(yaml.safe_load(target.read_text())["contexts"]), 3)
+
+    def test_merge_flag_is_opt_in_for_all_setup_commands_and_runs_after_verification(self):
+        for command in ("setup", "up", "rehearse"):
+            for enabled in (False, True):
+                for success in (False, True):
+                    with self.subTest(command=command, enabled=enabled, success=success), contextlib.ExitStack() as stack:
+                        argv = ["bootstrap.py", command] + (["--merge-kubeconfig"] if enabled else [])
+                        stack.enter_context(patch.object(bootstrap.sys, "argv", argv))
+                        stack.enter_context(patch.object(bootstrap.shutil, "which", return_value="/bin/tool"))
+                        for name in ("capture", "ensure_python", "recording_path", "ensure_source", "ensure_clusters", "deploy", "rehearse"):
+                            stack.enter_context(patch.object(bootstrap, name))
+                        stack.enter_context(patch.object(bootstrap.os, "execv"))
+                        stack.enter_context(patch.object(bootstrap, "verify_and_prepare", side_effect=None if success else RuntimeError("not ready")))
+                        merge = stack.enter_context(patch.object(bootstrap, "merge_kubeconfig"))
+                        if success:
+                            bootstrap.main()
+                        else:
+                            with self.assertRaisesRegex(RuntimeError, "not ready"):
+                                bootstrap.main()
+                        self.assertEqual(merge.call_count, int(enabled and success))
 
     def test_deployment_marker_is_written_only_after_success_and_invalidates_on_recreation(self):
         source = self.runtime / "source"

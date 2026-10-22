@@ -5,12 +5,13 @@ Checked on **22 October 2026**, including a real local k8gb failover and restora
 | Check | Result |
 | --- | --- |
 | Python 3.9 syntax / Bash launcher | Passed |
-| Automated suite | **44 tests passed, no skips**, including three real loopback HTTP tests |
+| Automated suite | **49 tests passed**, including three real loopback HTTP tests run outside the sandbox |
 | Provisioning | Rebuilt the three owned clusters with the minimal BIND9/k8gb/Ingress/Podinfo setup; verified parent DNS readiness and retried initial zone publication before launching |
 | Real local failover | Repeated successfully after the null-endpoint fix: baseline A → zero ready application endpoints in A → DNS/resolver/HTTP on B → original replicas restored → DNS/resolver/HTTP on A |
 | Restoration | Verified original replica count; no unfinished `beat-state.json` remained after the successful run |
 | Recording | Real observation JSONL saved locally under ignored `demo/recordings/`; includes request failures and intermediate DNS/cache differences |
-| Ownership and isolation | Unrelated name collisions rejected before mutation; missing owned clusters can be created on retry; kubeconfigs merged into a private file without changing the default kubeconfig |
+| Ownership and isolation | Unrelated name collisions rejected before mutation; missing owned clusters can be created on retry; setup uses a private kubeconfig and changes the default only with `--merge-kubeconfig` |
+| Optional context import | Real `setup --merge-kubeconfig` verified DNS/HTTP and found the imported contexts already current. Controlled tests cover first setup, retained current context and namespace, refreshed demo entries, unrelated credentials and relative paths, private backups, repeated imports, invalid configs, symlinks, failed atomic replacement, and opt-in behavior after successful verification for setup/up/rehearse |
 | Installation reuse | Completion marker tied to pinned source and cluster identities; failures do not mark installation complete; `--refresh` reapplies releases |
 | Observer reuse | Requires matching checkout, configuration, and code; only the observer config is mounted, excluding Kubernetes credentials |
 | Convergence | Requires fresh direct DNS and resolver records matching the target IPs, plus a successful HTTP response identifying the target cluster |
