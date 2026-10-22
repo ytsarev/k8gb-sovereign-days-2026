@@ -70,7 +70,7 @@ Prerequisites: **Python 3.9+, Docker, k3d, kubectl, Helm, Git, Make, and tmux**.
 
 Setup resumes after failures and reuses clusters created by this checkout. A name collision with an unrelated cluster stops setup. Repeated runs reuse matching Helm installations and the observer's cache; `--refresh` reapplies the pinned releases and manifests. Use `--record PATH` with `up` or `rehearse` to choose a new recording filename. `--timeout SECONDS` sets the transition wait (180 seconds by default for these commands).
 
-All Kubernetes access uses `demo/.runtime/kubeconfig` with private file permissions. Setup does not modify your default kubeconfig. The launcher selects this file when `KUBECONFIG` is unset, and passes it explicitly into both tmux panes. To inspect this playground manually, use `export KUBECONFIG="$PWD/demo/.runtime/kubeconfig"`.
+The demo uses `demo/.runtime/kubeconfig` with private file permissions. Setup does not modify your default kubeconfig. The launcher selects this file when `KUBECONFIG` is unset, and passes it explicitly into both tmux panes. See [Inspect from another terminal](#inspect-from-another-terminal) for direct `kubectl` access.
 
 k3d nodes share the Docker host's Linux file-watcher quota. Setup raises `fs.inotify.max_user_instances` to at least 8192 and `fs.inotify.max_user_watches` to at least 1048576 when necessary. On macOS these settings apply inside the Docker VM. Existing higher limits are preserved.
 
@@ -92,6 +92,37 @@ The presenter checks the baseline again and captures the replica count immediate
 Parent BIND9 runs in a **third infrastructure cluster**, separate from the two application clusters. Its host port is 1053; the observer uses the server container's NodePort 30053. Settings are in [config.json](config.json); live mode uses the prepared `.runtime/config.json`. Pass `--config PATH` to use another prepared file.
 
 Each convergence check is bounded: 180 seconds for `up` and `rehearse`, or 90 seconds when launching `run` or `stage` directly. Override either with `--timeout`. Checks require fresh observations after the action: both authoritative A-record sets and the resolver match the target IPs, and a successful HTTP response identifies the expected cluster. A timeout fails the run and triggers restoration; it is never reported as success.
+
+## Inspect from another terminal
+
+From the repository root, select the demo's kubeconfig in that terminal:
+
+```bash
+export KUBECONFIG="$PWD/demo/.runtime/kubeconfig"
+kubectl config get-contexts
+kubectl --context k3d-test-gslb1 -n test-gslb get pods -w
+```
+
+Use `k3d-test-gslb2` to watch Cluster B. The third context, `k3d-edgedns`, hosts the parent BIND9 service.
+
+To also make the contexts available in your normal kubeconfig, run this from a terminal where `KUBECONFIG` is unset or points to that normal config:
+
+```bash
+k3d kubeconfig merge edgedns test-gslb1 test-gslb2 \
+  --kubeconfig-merge-default --kubeconfig-switch-context=false
+kubectl config set-context k3d-test-gslb1 --namespace=test-gslb
+kubectl config set-context k3d-test-gslb2 --namespace=test-gslb
+kubectl config get-contexts
+```
+
+This adds or updates the demo entries while keeping your other contexts and current selection. Repeat the import if you recreate the clusters, since their API addresses and credentials can change. Select Cluster A with `kubectl config use-context k3d-test-gslb1` when desired. For example, watch application readiness during the presentation:
+
+```bash
+kubectl --context k3d-test-gslb1 -n test-gslb get deployment frontend-podinfo -w
+kubectl --context k3d-test-gslb2 -n test-gslb get deployment frontend-podinfo -w
+```
+
+Run each watch in a separate terminal; `Ctrl-C` stops the watch.
 
 ## Restore and finish
 
