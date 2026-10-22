@@ -160,8 +160,10 @@ def converged(latest, cfg, target, target_ips, since, clock):
 
 
 class Presenter:
-    def __init__(self, cfg, args):
+    def __init__(self, cfg, args, recorder=None):
         self.cfg, self.args = cfg, args
+        self.recorder = recorder
+        self.capture_error = None
         self.original = None
         self.uid = None
         self.pending = None
@@ -175,40 +177,57 @@ class Presenter:
         prefix = "\033[%sm" % ("1;" + codes.get(color, "0") if bold else codes.get(color, "0")) if self.color else ""
         return prefix + text + ("\033[0m" if self.color else "")
 
-    def line(self, text="", color="", bold=False):
+    def record(self, kind, **fields):
+        if self.recorder:
+            try:
+                self.recorder.append(kind, **fields)
+            except OSError as exc:
+                # A full disk must never prevent the live finally block from
+                # restoring replicas. The incomplete capture cannot be replayed.
+                self.capture_error, self.recorder = exc, None
+                print("Command capture failed; continuing through restoration: " + clean(exc), file=sys.stderr)
+
+    def line(self, text="", color="", bold=False, capture=True):
+        if capture:
+            self.record("line", text=clean(text, 4000), color=color, bold=bold)
         print(self.styled(text, color, bold), flush=True)
 
     def pause(self, label="Enter to run · q to stop"):
+        self.record("pause", label=label)
         if self.args.auto is not None:
             time.sleep(self.args.auto)
+            self.record("resume")
             return
-        self.line("  ↪ " + label, "muted")
+        self.line("  ↪ " + label, "muted", capture=False)
         answer = sys.stdin.readline()
         if not answer or answer.strip().lower() == "q":
             raise StopDemo()
         while answer.strip():
-            self.line("  Press Enter, or q to stop.", "muted")
+            self.line("  Press Enter, or q to stop.", "muted", capture=False)
             answer = sys.stdin.readline()
             if not answer or answer.strip().lower() == "q":
                 raise StopDemo()
+        self.record("resume")
 
     def beat(self, number, title, note):
         if number > 1:
             self.pause("Enter for beat %s: %s · q to stop" % (number, title))
+        self.record("beat", number=number, title=title, note=note)
         if self.color and not self.args.no_clear:
             print("\033[2J\033[H", end="")
-        self.line()
-        self.line("─" * min(72, shutil.get_terminal_size().columns - 2), "teal")
-        self.line("  %s / 7   %s" % (number, title.upper()), "teal", True)
+        self.line(capture=False)
+        self.line("─" * min(72, shutil.get_terminal_size().columns - 2), "teal", capture=False)
+        self.line("  %s / 7   %s" % (number, title.upper()), "teal", True, capture=False)
         if self.args.preview:
             self.line("  PREVIEW · illustrative output · no commands executed", "amber")
-        self.line()
+        self.line(capture=False)
         if not self.args.no_notes:
             for line in textwrap.wrap(note, max(30, min(76, shutil.get_terminal_size().columns - 6))):
-                self.line("  " + line, "muted")
-            self.line()
+                self.line("  " + line, "muted", capture=False)
+            self.line(capture=False)
 
     def show(self, argv):
+        self.record("command", argv=[str(arg) for arg in argv])
         width = max(38, shutil.get_terminal_size().columns - 5)
         # Wrap between argv tokens only: copying the command preserves its quoting.
         lines, line = [], "$"
@@ -221,7 +240,7 @@ class Presenter:
                 line += " " + token
         lines.append(line)
         for line in lines:
-            self.line(line, "blue", True)
+            self.line(line, "blue", True, capture=False)
 
     def command(self, argv, fixture="", view=None, pause=True, timeout=15, display=True):
         if display:
@@ -237,9 +256,11 @@ class Presenter:
                 raise RuntimeError(clean(result.stderr or output or "Command failed", 1200))
         if view:
             data = fixture if self.args.preview else read_yaml(output)
+            selected = view(data)
             self.line("  Selected YAML fields:", "muted")
-            for row in yaml_rows(view(data)):
-                self.line("".join(self.styled(text, color) for text, color in row))
+            self.record("yaml", data=selected)
+            for row in yaml_rows(selected):
+                self.line("".join(self.styled(text, color) for text, color in row), capture=False)
         else:
             # Preserve line breaks, remove terminal escapes from external output.
             for line in output.rstrip().splitlines():
@@ -421,6 +442,9 @@ class Presenter:
             self.wait_for("A", self.action_at)
             self.cue(46, 48, "7 / RESTORED")
             self.line("  A → B → A complete. Original replicas restored.", "green", True)
+            self.record("complete")
+            if self.capture_error:
+                raise RuntimeError("Command recording is incomplete: " + clean(self.capture_error))
         finally:
             if self.pending:
                 self.line("  Stopping: restoring the demo application's original replicas.", "amber")
@@ -492,7 +516,7 @@ def stage(args):
 
 def main():
     parser = argparse.ArgumentParser(prog="./demo/demo.sh", description=__doc__,
-        epilog="Automated setup: ./demo/demo.sh up (prepare + tmux), setup (prepare only), or rehearse (recorded A → B → A). Use up --help for setup options. Replay a captured dashboard: ./demo/demo.sh replay <recording.jsonl> [--compact].")
+        epilog="Automated setup: ./demo/demo.sh up (prepare + tmux), setup (prepare only), or rehearse (recorded A → B → A). Use up --help for setup options. Enter-driven offline fallback: ./demo/demo.sh offline. Replay a captured dashboard: ./demo/demo.sh replay <recording.jsonl> [--compact].")
     parser.add_argument("command", nargs="?", default="run", choices=("run", "stage", "traffic", "status", "reset"))
     parser.add_argument("--preview", action="store_true", help="Enter-paced illustrative rehearsal; never execute Kubernetes/Docker commands")
     parser.add_argument("--config", type=Path, help="Prepared live configuration, or base config for preview")
@@ -503,6 +527,8 @@ def main():
     parser.add_argument("--control-file", type=Path, default=CONTROL, help=argparse.SUPPRESS)
     parser.add_argument("--record", type=Path, help="Record live traffic observations (stage/traffic only)")
     parser.add_argument("--detach", action="store_true", help="Create tmux panes without attaching")
+    parser.add_argument("--transcript", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--capture-start", type=float, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.config:
         args.config = args.config.resolve()
@@ -512,6 +538,8 @@ def main():
         parser.error("--timeout must be between 1 and 600 seconds")
     if args.record and (args.preview or args.command not in ("stage", "traffic")):
         parser.error("--record needs live stage or traffic mode")
+    if args.transcript and (args.preview or args.command != "run" or args.capture_start is None):
+        parser.error("Command capture requires live run mode and --capture-start")
     if args.command == "stage" and args.auto is not None:
         parser.error("Use --auto with run; stage is Enter-driven")
     if not args.preview and args.command in ("run", "stage", "status", "reset"):
@@ -549,16 +577,22 @@ def main():
             raise ValueError("Another presenter is running; stop it before starting/resetting this run")
         saved = json.loads(STATE.read_text()) if args.command == "reset" else None
         cfg = saved["config"] if saved else load_config(path)
-        presenter = Presenter(preview_config(cfg) if args.preview else cfg, args)
-        if args.command == "reset":
-            presenter.pending = saved
-            presenter.restore()
-        elif args.command == "status":
-            presenter.args.auto = 0
-            presenter.baseline()
-            presenter.steering()
-        else:
-            presenter.run()
+        from transcript import Transcript
+        recorder = Transcript(args.transcript, args.capture_start) if args.transcript else None
+        try:
+            presenter = Presenter(preview_config(cfg) if args.preview else cfg, args, recorder)
+            if args.command == "reset":
+                presenter.pending = saved
+                presenter.restore()
+            elif args.command == "status":
+                presenter.args.auto = 0
+                presenter.baseline()
+                presenter.steering()
+            else:
+                presenter.run()
+        finally:
+            if recorder:
+                recorder.close()
 
 
 if __name__ == "__main__":

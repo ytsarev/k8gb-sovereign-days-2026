@@ -348,7 +348,11 @@ def recording_path(path):
 
 
 def rehearse(cfg, path, timeout):
-    from dashboard import Live, Recording
+    from dashboard import Live, Recording, SOURCES
+    from transcript import transcript_path
+    transcript = transcript_path(path)
+    if transcript.exists():
+        raise ValueError("Command recording exists; choose a new filename: " + str(transcript))
     step("Run and record the complete A → B → A rehearsal")
     start = time.time()
     recorder = Recording(path, cfg, start)
@@ -356,9 +360,32 @@ def rehearse(cfg, path, timeout):
     process = None
     try:
         live.launch()
+        # Capture the initial dashboard before the first Enter gate, so an
+        # offline audience can already see the healthy baseline while paused.
+        seen, deadline = set(), time.monotonic() + timeout
+        while seen != set(SOURCES):
+            if time.monotonic() >= deadline:
+                raise RuntimeError("Could not capture initial observations for every dashboard source")
+            try:
+                message = live.messages.get(timeout=0.25)
+            except queue.Empty:
+                continue
+            if "transport_error" in message:
+                raise RuntimeError(message["transport_error"])
+            recorder.append(message)
+            if message["data"].get("ok"):
+                seen.add(message["source"])
         process = subprocess.Popen([sys.executable, "-u", str(HERE / "presenter.py"), "run",
-                                    "--auto", "0", "--no-clear", "--timeout", str(timeout)], start_new_session=True)
-        while process.poll() is None or not live.messages.empty():
+                                    "--auto", "0", "--no-clear", "--timeout", str(timeout),
+                                    "--transcript", str(transcript), "--capture-start", str(start)], start_new_session=True)
+        finished_at = None
+        while True:
+            if process.poll() is not None:
+                if finished_at is None:
+                    finished_at = time.monotonic()
+                # Retain one final observer cycle after the command pane exits.
+                if time.monotonic() - finished_at >= cfg["interval"] + 1:
+                    break
             try:
                 message = live.messages.get(timeout=0.25)
             except queue.Empty:
@@ -376,6 +403,7 @@ def rehearse(cfg, path, timeout):
         live.close()
         recorder.close()
     print("\nRehearsal passed. Recording: " + str(path))
+    print("Offline presentation: ./demo/demo.sh offline " + shlex.quote(str(path)))
 
 
 def main():

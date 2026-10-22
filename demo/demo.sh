@@ -8,6 +8,10 @@ fi
 ENTRYPOINT=presenter.py
 case "${1:-}" in
   up|setup|rehearse) ENTRYPOINT=bootstrap.py ;;
+  offline)
+    ENTRYPOINT=offline.py
+    shift
+    ;;
   replay)
     ENTRYPOINT=dashboard.py
     shift

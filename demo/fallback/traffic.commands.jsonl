@@ -1,0 +1,179 @@
+{"schema": "k8gb-commands-v1", "origin": "live", "start": 1792674035.679477}
+{"kind": "beat", "at": 1792674037.630023, "number": 1, "title": "Two clusters. Two locations.", "note": "A is the preferred location; B runs the same service. Local BIND9 delegates the application zone to their CoreDNS servers."}
+{"kind": "command", "at": 1792674037.630123, "argv": ["kubectl", "--context", "k3d-test-gslb1", "--request-timeout=5s", "-n", "test-gslb", "get", "deployment", "frontend-podinfo", "-o", "yaml"]}
+{"kind": "pause", "at": 1792674037.630153, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674037.630164}
+{"kind": "line", "at": 1792674037.680948, "text": "  Selected YAML fields:", "color": "muted", "bold": false}
+{"kind": "yaml", "at": 1792674037.681052, "data": {"metadata": {"name": "frontend-podinfo", "namespace": "test-gslb"}, "spec": {"replicas": 1}, "status": {"readyReplicas": 1, "availableReplicas": 1}}}
+{"kind": "line", "at": 1792674037.681372, "text": "", "color": "", "bold": false}
+{"kind": "command", "at": 1792674037.6814342, "argv": ["kubectl", "--context", "k3d-test-gslb2", "--request-timeout=5s", "-n", "test-gslb", "get", "deployment", "frontend-podinfo", "-o", "yaml"]}
+{"kind": "pause", "at": 1792674037.681525, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674037.681538}
+{"kind": "line", "at": 1792674037.7468421, "text": "  Selected YAML fields:", "color": "muted", "bold": false}
+{"kind": "yaml", "at": 1792674037.746921, "data": {"metadata": {"name": "frontend-podinfo", "namespace": "test-gslb"}, "spec": {"replicas": 1}, "status": {"readyReplicas": 1, "availableReplicas": 1}}}
+{"kind": "line", "at": 1792674037.74703, "text": "", "color": "", "bold": false}
+{"kind": "line", "at": 1792674037.747069, "text": "  Original A replica count: 1 (restored at the end)", "color": "green", "bold": false}
+{"kind": "pause", "at": 1792674037.7471051, "label": "Enter for beat 2: Traffic steering is a Kubernetes resource \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674037.7471218}
+{"kind": "beat", "at": 1792674037.7471318, "number": 2, "title": "Traffic steering is a Kubernetes resource", "note": "Both clusters use failover with A's geotag as primary. Kubernetes readiness determines which application targets remain eligible."}
+{"kind": "command", "at": 1792674037.747277, "argv": ["kubectl", "--context", "k3d-test-gslb1", "--request-timeout=5s", "-n", "test-gslb", "get", "gslbs.k8gb.io", "failover-ingress", "-o", "yaml"]}
+{"kind": "pause", "at": 1792674037.747314, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674037.747327}
+{"kind": "line", "at": 1792674037.80409, "text": "  Selected YAML fields:", "color": "muted", "bold": false}
+{"kind": "yaml", "at": 1792674037.804183, "data": {"apiVersion": "k8gb.io/v1beta1", "kind": "Gslb", "metadata": {"name": "failover-ingress", "namespace": "test-gslb"}, "spec": {"ingress": {}, "resourceRef": {"apiVersion": "networking.k8s.io/v1", "kind": "Ingress", "name": "failover-ingress"}, "serviceHealthPolicy": "Any", "strategy": {"dnsTtlSeconds": 30, "primaryGeoTag": "eu", "type": "failover"}}}}
+{"kind": "line", "at": 1792674037.804348, "text": "", "color": "", "bold": false}
+{"kind": "command", "at": 1792674037.8043818, "argv": ["kubectl", "--context", "k3d-test-gslb2", "--request-timeout=5s", "-n", "test-gslb", "get", "gslbs.k8gb.io", "failover-ingress", "-o", "yaml"]}
+{"kind": "pause", "at": 1792674037.804476, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674037.8044941}
+{"kind": "line", "at": 1792674037.868757, "text": "  Selected YAML fields:", "color": "muted", "bold": false}
+{"kind": "yaml", "at": 1792674037.868824, "data": {"apiVersion": "k8gb.io/v1beta1", "kind": "Gslb", "metadata": {"name": "failover-ingress", "namespace": "test-gslb"}, "spec": {"ingress": {}, "resourceRef": {"apiVersion": "networking.k8s.io/v1", "kind": "Ingress", "name": "failover-ingress"}, "serviceHealthPolicy": "Any", "strategy": {"dnsTtlSeconds": 30, "primaryGeoTag": "eu", "type": "failover"}}}}
+{"kind": "line", "at": 1792674037.8689978, "text": "", "color": "", "bold": false}
+{"kind": "pause", "at": 1792674037.86907, "label": "Enter for beat 3: Follow the name \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674037.8690848}
+{"kind": "beat", "at": 1792674037.869094, "number": 3, "title": "Follow the name", "note": "The parent delegates to both CoreDNS servers. Before failure, both should return A's IPs for the same hostname. Then inspect each cluster's local targets."}
+{"kind": "command", "at": 1792674037.869241, "argv": ["docker", "exec", "k8gb-talk-observer", "dig", "@172.18.0.3", "-p", "30053", "failover.cloud.example.com", "A", "+tcp", "+time=2", "+tries=1", "+norecurse", "+noall", "+authority", "+additional"]}
+{"kind": "pause", "at": 1792674037.869277, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674037.869285}
+{"kind": "line", "at": 1792674037.9300082, "text": "cloud.example.com.  30  IN  NS  gslb-ns-eu-cloud.example.com.", "color": "", "bold": false}
+{"kind": "line", "at": 1792674037.930187, "text": "cloud.example.com.  30  IN  NS  gslb-ns-us-cloud.example.com.", "color": "", "bold": false}
+{"kind": "line", "at": 1792674037.930212, "text": "", "color": "", "bold": false}
+{"kind": "line", "at": 1792674037.930238, "text": "  Cluster A \u00b7 DNS answer", "color": "muted", "bold": false}
+{"kind": "command", "at": 1792674037.9302678, "argv": ["docker", "exec", "k8gb-talk-observer", "dig", "@172.18.0.9", "failover.cloud.example.com", "A", "+tcp", "+time=2", "+tries=1", "+norecurse", "+short"]}
+{"kind": "pause", "at": 1792674037.930377, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674037.930392}
+{"kind": "line", "at": 1792674037.993484, "text": "172.18.0.6", "color": "", "bold": false}
+{"kind": "line", "at": 1792674037.9935832, "text": "172.18.0.7", "color": "", "bold": false}
+{"kind": "line", "at": 1792674037.993599, "text": "", "color": "", "bold": false}
+{"kind": "line", "at": 1792674037.99363, "text": "  Cluster B \u00b7 DNS answer", "color": "muted", "bold": false}
+{"kind": "command", "at": 1792674037.9936588, "argv": ["docker", "exec", "k8gb-talk-observer", "dig", "@172.18.0.13", "failover.cloud.example.com", "A", "+tcp", "+time=2", "+tries=1", "+norecurse", "+short"]}
+{"kind": "pause", "at": 1792674037.993776, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674037.99379}
+{"kind": "line", "at": 1792674038.0497239, "text": "172.18.0.6", "color": "", "bold": false}
+{"kind": "line", "at": 1792674038.0498078, "text": "172.18.0.7", "color": "", "bold": false}
+{"kind": "line", "at": 1792674038.049824, "text": "", "color": "", "bold": false}
+{"kind": "line", "at": 1792674038.049859, "text": "  Cluster A \u00b7 local application targets", "color": "muted", "bold": false}
+{"kind": "command", "at": 1792674038.049886, "argv": ["docker", "exec", "k8gb-talk-observer", "dig", "@172.18.0.9", "localtargets.failover.cloud.example.com", "A", "+tcp", "+time=2", "+tries=1", "+norecurse", "+short"]}
+{"kind": "pause", "at": 1792674038.049995, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674038.050011}
+{"kind": "line", "at": 1792674038.114454, "text": "172.18.0.6", "color": "", "bold": false}
+{"kind": "line", "at": 1792674038.1145432, "text": "172.18.0.7", "color": "", "bold": false}
+{"kind": "line", "at": 1792674038.11456, "text": "", "color": "", "bold": false}
+{"kind": "line", "at": 1792674038.114658, "text": "  Cluster B \u00b7 local application targets", "color": "muted", "bold": false}
+{"kind": "command", "at": 1792674038.1146839, "argv": ["docker", "exec", "k8gb-talk-observer", "dig", "@172.18.0.13", "localtargets.failover.cloud.example.com", "A", "+tcp", "+time=2", "+tries=1", "+norecurse", "+short"]}
+{"kind": "pause", "at": 1792674038.114805, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674038.114818}
+{"kind": "line", "at": 1792674038.164734, "text": "172.18.0.11", "color": "", "bold": false}
+{"kind": "line", "at": 1792674038.1648278, "text": "172.18.0.12", "color": "", "bold": false}
+{"kind": "line", "at": 1792674038.164844, "text": "", "color": "", "bold": false}
+{"kind": "command", "at": 1792674038.165309, "argv": ["docker", "logs", "--since", "2026-10-22T13:00:37.630+00:00", "--tail", "200", "k8gb-talk-observer"]}
+{"kind": "line", "at": 1792674038.165422, "text": "  Polling these observations: both authorities + resolver + HTTP must agree on A.", "color": "muted", "bold": false}
+{"kind": "pause", "at": 1792674038.165449, "label": "Enter to verify the observed transition \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674038.165461}
+{"kind": "line", "at": 1792674038.187451, "text": "  Waiting for fresh observations on A\u2026 179s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674040.212524, "text": "  Verified: both authorities + resolver \u2192 A; HTTP 200 from A.", "color": "green", "bold": false}
+{"kind": "pause", "at": 1792674040.212634, "label": "Enter for beat 4: Remove A's ready application targets \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674040.2126532}
+{"kind": "beat", "at": 1792674040.212662, "number": 4, "title": "Remove A's ready application targets", "note": "Scale only the demo application to zero. A's Kubernetes API and DNS stay running. Watch readiness, DNS publication, then the client."}
+{"kind": "command", "at": 1792674040.2128341, "argv": ["kubectl", "--context", "k3d-test-gslb1", "--request-timeout=5s", "-n", "test-gslb", "get", "deployment", "frontend-podinfo", "-o", "yaml"]}
+{"kind": "pause", "at": 1792674040.2128792, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674040.212888}
+{"kind": "line", "at": 1792674040.263633, "text": "  Selected YAML fields:", "color": "muted", "bold": false}
+{"kind": "yaml", "at": 1792674040.263743, "data": {"metadata": {"name": "frontend-podinfo", "namespace": "test-gslb"}, "spec": {"replicas": 1}, "status": {"readyReplicas": 1, "availableReplicas": 1}}}
+{"kind": "line", "at": 1792674040.2638578, "text": "", "color": "", "bold": false}
+{"kind": "command", "at": 1792674040.263885, "argv": ["kubectl", "--context", "k3d-test-gslb1", "--request-timeout=5s", "-n", "test-gslb", "scale", "deployment/frontend-podinfo", "--current-replicas=1", "--replicas=0"]}
+{"kind": "pause", "at": 1792674040.26399, "label": "Enter to scale the demo application to zero \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674040.264004}
+{"kind": "line", "at": 1792674040.3108218, "text": "deployment.apps/frontend-podinfo scaled", "color": "", "bold": false}
+{"kind": "line", "at": 1792674040.3109481, "text": "", "color": "", "bold": false}
+{"kind": "pause", "at": 1792674040.3110342, "label": "Enter for beat 5: Follow the traffic to B \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674040.3110468}
+{"kind": "beat", "at": 1792674040.311056, "number": 5, "title": "Follow the traffic to B", "note": "A new DNS answer and a recovered client are separate observations. Cached answers can briefly retain A; keep any failed requests visible."}
+{"kind": "command", "at": 1792674040.3112352, "argv": ["kubectl", "--context", "k3d-test-gslb1", "--request-timeout=5s", "-n", "test-gslb", "get", "endpointslices", "-l", "kubernetes.io/service-name=frontend-podinfo", "-o", "yaml"]}
+{"kind": "pause", "at": 1792674040.3112829, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674040.311292}
+{"kind": "line", "at": 1792674040.552663, "text": "  Selected YAML fields:", "color": "muted", "bold": false}
+{"kind": "yaml", "at": 1792674040.552738, "data": {"items": [{"metadata": {"name": "frontend-podinfo-tmgkg"}, "endpoints": [{"addresses": ["10.42.0.12"], "conditions": {"ready": false}}]}]}}
+{"kind": "line", "at": 1792674040.5528479, "text": "", "color": "", "bold": false}
+{"kind": "line", "at": 1792674040.5528781, "text": "  Cluster A \u00b7 DNS answer", "color": "muted", "bold": false}
+{"kind": "command", "at": 1792674040.5529, "argv": ["docker", "exec", "k8gb-talk-observer", "dig", "@172.18.0.9", "failover.cloud.example.com", "A", "+tcp", "+time=2", "+tries=1", "+norecurse", "+short"]}
+{"kind": "pause", "at": 1792674040.552992, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674040.553014}
+{"kind": "line", "at": 1792674040.609215, "text": "172.18.0.11", "color": "", "bold": false}
+{"kind": "line", "at": 1792674040.609306, "text": "172.18.0.12", "color": "", "bold": false}
+{"kind": "line", "at": 1792674040.6093261, "text": "", "color": "", "bold": false}
+{"kind": "line", "at": 1792674040.609355, "text": "  Cluster B \u00b7 DNS answer", "color": "muted", "bold": false}
+{"kind": "command", "at": 1792674040.609382, "argv": ["docker", "exec", "k8gb-talk-observer", "dig", "@172.18.0.13", "failover.cloud.example.com", "A", "+tcp", "+time=2", "+tries=1", "+norecurse", "+short"]}
+{"kind": "pause", "at": 1792674040.609487, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674040.6095}
+{"kind": "line", "at": 1792674040.687098, "text": "172.18.0.6", "color": "", "bold": false}
+{"kind": "line", "at": 1792674040.687194, "text": "172.18.0.7", "color": "", "bold": false}
+{"kind": "line", "at": 1792674040.6872141, "text": "", "color": "", "bold": false}
+{"kind": "command", "at": 1792674040.6872928, "argv": ["docker", "logs", "--since", "2026-10-22T13:00:40.264+00:00", "--tail", "200", "k8gb-talk-observer"]}
+{"kind": "line", "at": 1792674040.6874108, "text": "  Polling these observations: both authorities + resolver + HTTP must agree on B.", "color": "muted", "bold": false}
+{"kind": "pause", "at": 1792674040.68744, "label": "Enter to verify the observed transition \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674040.687454}
+{"kind": "line", "at": 1792674040.709457, "text": "  Waiting for fresh observations on B\u2026 179s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674042.7331278, "text": "  Waiting for fresh observations on B\u2026 177s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674044.763137, "text": "  Waiting for fresh observations on B\u2026 175s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674046.788286, "text": "  Waiting for fresh observations on B\u2026 173s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674048.819319, "text": "  Waiting for fresh observations on B\u2026 171s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674050.8510258, "text": "  Waiting for fresh observations on B\u2026 169s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674052.8798358, "text": "  Waiting for fresh observations on B\u2026 167s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674054.904696, "text": "  Waiting for fresh observations on B\u2026 165s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674056.942076, "text": "  Waiting for fresh observations on B\u2026 163s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674058.970182, "text": "  Verified: both authorities + resolver \u2192 B; HTTP 200 from B.", "color": "green", "bold": false}
+{"kind": "pause", "at": 1792674058.970288, "label": "Enter for beat 6: Restore A \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674058.970304}
+{"kind": "beat", "at": 1792674058.970314, "number": 6, "title": "Restore A", "note": "Restore the original replica count. Readiness returns before we expect DNS and the client to prefer A again."}
+{"kind": "command", "at": 1792674058.970474, "argv": ["kubectl", "--context", "k3d-test-gslb1", "--request-timeout=5s", "-n", "test-gslb", "get", "deployment", "frontend-podinfo", "-o", "yaml"]}
+{"kind": "line", "at": 1792674059.019639, "text": "  Selected YAML fields:", "color": "muted", "bold": false}
+{"kind": "yaml", "at": 1792674059.0197, "data": {"metadata": {"name": "frontend-podinfo", "namespace": "test-gslb"}, "spec": {"replicas": 0}, "status": {}}}
+{"kind": "line", "at": 1792674059.019785, "text": "", "color": "", "bold": false}
+{"kind": "command", "at": 1792674059.019813, "argv": ["kubectl", "--context", "k3d-test-gslb1", "--request-timeout=5s", "-n", "test-gslb", "scale", "deployment/frontend-podinfo", "--current-replicas=0", "--replicas=1"]}
+{"kind": "pause", "at": 1792674059.0198998, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674059.019923}
+{"kind": "line", "at": 1792674059.0713742, "text": "deployment.apps/frontend-podinfo scaled", "color": "", "bold": false}
+{"kind": "line", "at": 1792674059.0714781, "text": "", "color": "", "bold": false}
+{"kind": "command", "at": 1792674059.071519, "argv": ["kubectl", "--context", "k3d-test-gslb1", "--request-timeout=185s", "-n", "test-gslb", "rollout", "status", "deployment/frontend-podinfo", "--timeout=180s"]}
+{"kind": "line", "at": 1792674062.2325099, "text": "Waiting for deployment \"frontend-podinfo\" rollout to finish: 0 out of 1 new replicas have been updated...", "color": "", "bold": false}
+{"kind": "line", "at": 1792674062.23263, "text": "Waiting for deployment \"frontend-podinfo\" rollout to finish: 0 of 1 updated replicas are available...", "color": "", "bold": false}
+{"kind": "line", "at": 1792674062.2326531, "text": "deployment \"frontend-podinfo\" successfully rolled out", "color": "", "bold": false}
+{"kind": "line", "at": 1792674062.232717, "text": "", "color": "", "bold": false}
+{"kind": "pause", "at": 1792674062.2330308, "label": "Enter for beat 7: Verify the return to A \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674062.233052}
+{"kind": "beat", "at": 1792674062.2330618, "number": 7, "title": "Verify the return to A", "note": "Check the actual application response as well as both DNS authorities. The hostname never changed."}
+{"kind": "line", "at": 1792674062.233206, "text": "  Cluster A \u00b7 DNS answer", "color": "muted", "bold": false}
+{"kind": "command", "at": 1792674062.233231, "argv": ["docker", "exec", "k8gb-talk-observer", "dig", "@172.18.0.9", "failover.cloud.example.com", "A", "+tcp", "+time=2", "+tries=1", "+norecurse", "+short"]}
+{"kind": "pause", "at": 1792674062.233273, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674062.233283}
+{"kind": "line", "at": 1792674062.293368, "text": "172.18.0.6", "color": "", "bold": false}
+{"kind": "line", "at": 1792674062.293472, "text": "172.18.0.7", "color": "", "bold": false}
+{"kind": "line", "at": 1792674062.293492, "text": "", "color": "", "bold": false}
+{"kind": "line", "at": 1792674062.293524, "text": "  Cluster B \u00b7 DNS answer", "color": "muted", "bold": false}
+{"kind": "command", "at": 1792674062.293549, "argv": ["docker", "exec", "k8gb-talk-observer", "dig", "@172.18.0.13", "failover.cloud.example.com", "A", "+tcp", "+time=2", "+tries=1", "+norecurse", "+short"]}
+{"kind": "pause", "at": 1792674062.2936618, "label": "Enter to run \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674062.2936761}
+{"kind": "line", "at": 1792674062.362758, "text": "172.18.0.11", "color": "", "bold": false}
+{"kind": "line", "at": 1792674062.362868, "text": "172.18.0.12", "color": "", "bold": false}
+{"kind": "line", "at": 1792674062.362889, "text": "", "color": "", "bold": false}
+{"kind": "command", "at": 1792674062.362974, "argv": ["docker", "logs", "--since", "2026-10-22T13:00:59.019+00:00", "--tail", "200", "k8gb-talk-observer"]}
+{"kind": "line", "at": 1792674062.363088, "text": "  Polling these observations: both authorities + resolver + HTTP must agree on A.", "color": "muted", "bold": false}
+{"kind": "pause", "at": 1792674062.3631182, "label": "Enter to verify the observed transition \u00b7 q to stop"}
+{"kind": "resume", "at": 1792674062.363134}
+{"kind": "line", "at": 1792674062.386066, "text": "  Waiting for fresh observations on A\u2026 179s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674064.416697, "text": "  Waiting for fresh observations on A\u2026 177s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674066.4526982, "text": "  Waiting for fresh observations on A\u2026 175s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674068.480096, "text": "  Waiting for fresh observations on A\u2026 173s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674070.50321, "text": "  Waiting for fresh observations on A\u2026 171s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674072.536971, "text": "  Waiting for fresh observations on A\u2026 169s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674074.562918, "text": "  Waiting for fresh observations on A\u2026 167s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674076.586335, "text": "  Waiting for fresh observations on A\u2026 165s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674078.6094148, "text": "  Waiting for fresh observations on A\u2026 163s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674080.638457, "text": "  Waiting for fresh observations on A\u2026 161s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674082.667725, "text": "  Waiting for fresh observations on A\u2026 159s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674084.6980128, "text": "  Waiting for fresh observations on A\u2026 157s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674086.729244, "text": "  Waiting for fresh observations on A\u2026 155s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674088.757188, "text": "  Waiting for fresh observations on A\u2026 153s remaining", "color": "muted", "bold": false}
+{"kind": "line", "at": 1792674090.7895942, "text": "  Verified: both authorities + resolver \u2192 A; HTTP 200 from A.", "color": "green", "bold": false}
+{"kind": "line", "at": 1792674090.792659, "text": "  A \u2192 B \u2192 A complete. Original replicas restored.", "color": "green", "bold": true}
+{"kind": "complete", "at": 1792674090.792746}

@@ -30,6 +30,14 @@ The preview uses clearly labelled illustrative data. For the real local demo, st
 
 This provisions the clusters, local BIND9, k8gb, and observer; checks real DNS and HTTP traffic; then opens the Enter-driven presentation with recording. `./demo/demo.sh rehearse` runs and records the complete A → B → A sequence automatically. See [prerequisites and setup](demo/README.md#run-the-real-demo) and the [runbook](demo/RUNBOOK.md).
 
+## Offline fallback with Enter
+
+```bash
+./demo/demo.sh offline
+```
+
+Plays a bundled real rehearsal: captured commands and highlighted YAML on the left, synchronized recorded traffic on the right. Press Enter to advance; the recorded clock pauses while you explain. Both panes say **RECORDED REPLAY**. Only Python 3.9+ and tmux are needed; no Docker, Kubernetes, kubeconfig, network, or pip packages. The displayed commands are never executed. See [recording provenance](demo/fallback/README.md).
+
 ## Project and contact
 
 - [k8gb.io](https://www.k8gb.io/)

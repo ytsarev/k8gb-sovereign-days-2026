@@ -166,13 +166,32 @@ The pinned [CoreDNS CRD plugin v0.7.0](https://github.com/k8gb-io/coredns-crd-pl
 
 ## Record and replay
 
+For the complete presentation offline, with Enter pauses and both panes:
+
+```bash
+./demo/demo.sh offline
+```
+
+This uses the [bundled real rehearsal](fallback/README.md). The left pane replays the captured commands, selected YAML, notes, and verification output. The right pane replays the matching DNS, resolver, readiness, and HTTP observations. Both panes are labelled **RECORDED REPLAY**; displayed commands are never executed. Python 3.9+ and tmux are sufficient, with no Docker, Kubernetes, kubeconfig, internet access, or pip installation.
+
+**Enter** advances at the original command/beat boundaries. The recorded clock pauses at each prompt and resumes with the original action timing, including failed requests and cache delays. **q + Enter** stops the command replay; **q** in the traffic pane closes that view. `Ctrl-b d` detaches. `--no-tmux` plays only the command transcript in the current terminal; `--detach` opens the two panes without attaching. Each launch gets its own temporary playback control file, separate from live recovery state.
+
+To capture your own replacement from a real run:
+
+```bash
+./demo/demo.sh rehearse --record demo/recordings/rehearsal-01.jsonl
+./demo/demo.sh offline demo/recordings/rehearsal-01.jsonl
+```
+
+Rehearsal now writes both `rehearsal-01.jsonl` (traffic) and `rehearsal-01.commands.jsonl` (displayed output and Enter boundaries). Keep them together when copying to another laptop. Incomplete or mismatched captures are rejected. Earlier recordings and live `stage --record` captures contain only the traffic dashboard; they remain usable with dashboard playback:
+
 ```bash
 ./demo/demo.sh replay demo/recordings/rehearsal-01.jsonl
 ```
 
 Press **Space** to pause/resume, **r** to restart, and **q** to quit. Add `--compact` for a narrow terminal. Replay reads the recording locally and does not need running clusters or Docker.
 
-Recordings contain a live-origin header, configuration, original replica counts (when prepared), and the observations received during the live view or unattended rehearsal. Replay is labelled **RECORDED REPLAY** and preserves receipt timing, responses, errors and observation timestamps. Recording paths must be new; old evidence is never overwritten. Machine-specific recordings stay local. A header is provenance metadata, not a cryptographic authenticity guarantee.
+Recordings contain a live-origin header, configuration, original replica counts (when prepared), and the observations received during the live view or unattended rehearsal. Replay is labelled **RECORDED REPLAY** and preserves receipt timing, responses, errors and observation timestamps. Recording paths must be new; old evidence is never overwritten. New machine-specific recordings stay local under ignored `recordings/`; the reviewed fallback capture is bundled separately under `fallback/`. A header is provenance metadata, not a cryptographic authenticity guarantee.
 
 For a text/SVG layout snapshot:
 

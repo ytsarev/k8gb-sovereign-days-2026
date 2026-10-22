@@ -330,13 +330,13 @@ def render_compact(state, width, height, clock, paused=False, finished=False, cu
     return c
 
 
-def controlled_preview(path, clock):
-    """Follow presenter cues; missing/partial files keep preview at the baseline."""
+def controlled_preview(path, clock, end=48):
+    """Follow a bounded presenter clock for preview or recorded playback."""
     try:
         cue = json.loads(path.read_text())
         values = [float(cue[k]) for k in ("offset", "until", "at")]
         offset, until, at = values
-        if not all(math.isfinite(v) for v in values) or not 0 <= offset <= until <= 48:
+        if not all(math.isfinite(v) for v in values) or not 0 <= offset <= until <= end:
             raise ValueError("Invalid preview cue")
         return min(until, offset + max(0, clock - at)), clean(cue.get("beat", ""))
     except (OSError, ValueError, KeyError, TypeError):
@@ -503,7 +503,7 @@ def interact(screen, state, messages, live, recording, compact=False, control_fi
         if not paused:
             offset += tick - last_tick
         if control_file:
-            offset, cue = controlled_preview(control_file, now())
+            offset, cue = controlled_preview(control_file, now(), end)
             if offset < previous:
                 state = State(state.config, state.mode, state.start)
                 cursor = 0
@@ -527,6 +527,9 @@ def interact(screen, state, messages, live, recording, compact=False, control_fi
                 cursor += 1
         height, width = screen.getmaxyx()
         canvas = render_compact(state, width, height, clock, paused, not live and offset >= end, cue) if compact else render(state, width, height, clock, paused, not live and offset >= end)
+        if control_file and not live:
+            canvas.fill(0, height - 1, width, 1, "bg")
+            canvas.text(2, height - 1, "q quit · Enter in the command pane advances playback", "muted", width=width - 4)
         paint(screen, canvas)
         key = screen.getch()
         if key in (ord("q"), 27):
@@ -557,7 +560,7 @@ def main():
     parser.add_argument("--height", type=int, default=44)
     parser.add_argument("--svg", type=Path, help="Also export snapshot character grid as SVG")
     parser.add_argument("--compact", action="store_true", help="Narrow traffic view for the right tmux pane")
-    parser.add_argument("--control-file", type=Path, help="Follow Enter-driven preview cues from the presenter")
+    parser.add_argument("--control-file", type=Path, help="Follow Enter-driven preview or replay cues from the presenter")
     args = parser.parse_args()
     if args.record and not args.live:
         parser.error("--record requires --live; illustrative data cannot be recorded as evidence")
@@ -565,8 +568,8 @@ def main():
         parser.error("Use the live full-screen view; snapshots support preview/replay")
     if args.svg and not args.snapshot:
         parser.error("--svg requires --snapshot")
-    if args.control_file and (not args.preview or args.snapshot):
-        parser.error("--control-file requires interactive --preview")
+    if args.control_file and (args.live or args.snapshot):
+        parser.error("--control-file requires interactive --preview or --replay")
     if args.replay:
         header, messages = replay_file(args.replay)
         cfg, start, label = header["config"], header["start"], "RECORDED REPLAY"

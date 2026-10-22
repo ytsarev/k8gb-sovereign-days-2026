@@ -5,11 +5,13 @@ Checked on **22 October 2026**, including a real local k8gb failover and restora
 | Check | Result |
 | --- | --- |
 | Python 3.9 syntax / Bash launcher | Passed |
-| Automated suite | **49 tests passed**, including three real loopback HTTP tests run outside the sandbox |
+| Automated suite | **57 tests passed**, including three real loopback HTTP tests run outside the sandbox |
 | Provisioning | Rebuilt the three owned clusters with the minimal BIND9/k8gb/Ingress/Podinfo setup; verified parent DNS readiness and retried initial zone publication before launching |
 | Real local failover | Repeated successfully after the null-endpoint fix: baseline A → zero ready application endpoints in A → DNS/resolver/HTTP on B → original replicas restored → DNS/resolver/HTTP on A |
 | Restoration | Verified original replica count; no unfinished `beat-state.json` remained after the successful run |
-| Recording | Real observation JSONL saved locally under ignored `demo/recordings/`; includes request failures and intermediate DNS/cache differences |
+| Recording | Rehearsals capture paired traffic and displayed-command JSONL under ignored `demo/recordings/`. A reviewed, real A → B → A capture is bundled in `demo/fallback/`, including eight failed HTTP samples and intermediate DNS/cache differences; provenance and checksums are documented alongside it |
+| Offline playback | Completed the bundled replay in tmux: seven beats, 26 Enter prompts, both DNS authorities and resolver returned to A, HTTP 200 from A, and presenter exit status 0 with no exit banner. The dashboard begins with a populated healthy baseline and freezes at each Enter prompt |
+| Offline isolation | Completed the entire replay using system Python with site packages disabled, an empty working directory and home, `PATH=/nonexistent`, and a nonexistent kubeconfig. No Docker, Kubernetes, virtual environment, or live configuration was required. Tests also reject incomplete or mismatched captures and verify that recorded commands are never executed |
 | Ownership and isolation | Unrelated name collisions rejected before mutation; missing owned clusters can be created on retry; setup uses a private kubeconfig and changes the default only with `--merge-kubeconfig` |
 | Optional context import | Real `setup --merge-kubeconfig` verified DNS/HTTP and found the imported contexts already current. Controlled tests cover first setup, retained current context and namespace, refreshed demo entries, unrelated credentials and relative paths, private backups, repeated imports, invalid configs, symlinks, failed atomic replacement, and opt-in behavior after successful verification for setup/up/rehearse |
 | Installation reuse | Completion marker tied to pinned source and cluster identities; failures do not mark installation complete; `--refresh` reapplies releases |
@@ -39,7 +41,7 @@ Provision, verify, and record an unattended live rehearsal:
 
 This uses the pinned upstream checkout, k8gb v1.0.1, ingress-nginx chart 4.15.1, and matching Podinfo chart/image 6.15.0. Real setup checks exposed and corrected the Docker host's low inotify limit, k3d's separate kubeconfig documents, the upstream sample's Podinfo image/chart mismatch, premature DNS readiness, and the runtime command used during setup reuse. The plugin's unset AA flag is handled explicitly as described above.
 
-The controlled presenter tests prove orchestration and recovery behavior. The live run separately verifies the actual Kubernetes → CoreDNS → Unbound → HTTP path. Timing depends on the local machine and is not a production recovery-time guarantee. Recordings stay local; the repository includes only illustrative layout assets, not captured live evidence.
+The controlled presenter tests prove orchestration and recovery behavior. The live run separately verifies the actual Kubernetes → CoreDNS → Unbound → HTTP path. Timing depends on the local machine and is not a production recovery-time guarantee. New recordings stay local and ignored; the reviewed recording in `demo/fallback/` is included for offline playback and is clearly labeled as recorded output.
 
 Before presenting, run `./demo/demo.sh up`, rehearse with Enter, and review the right-hand pane and recording. The hostname uses an Ingress integration; the deck's HTTPRoute manifest illustrates a separate supported integration.
 

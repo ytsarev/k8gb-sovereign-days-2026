@@ -50,13 +50,13 @@ After a killed terminal/process, use:
 
 This restores only the saved Deployment identity and replica count, then waits for rollout. Verify both DNS authorities and HTTP before starting a new run. The saved data is in `demo/.runtime/beat-state.json`; do not replace it with a new baseline while recovery is pending.
 
-If the system will not converge within the rehearsed time, restore it and use an actual captured replay:
+If the system will not converge within the rehearsed time, restore it and open the bundled offline presentation:
 
 ```bash
-./demo/demo.sh replay demo/recordings/rehearsal-01.jsonl --compact
+./demo/demo.sh offline
 ```
 
-No live recording is included in the repository. `--preview` is explicitly illustrative and is suitable for rehearsing the presentation, not as evidence of a measured failover.
+It has the same Enter-driven structure, with captured command output on the left and synchronized recorded traffic on the right. It needs only Python and tmux; no live commands are executed. To use your own complete rehearsal, pass its traffic path: `./demo/demo.sh offline demo/recordings/rehearsal-01.jsonl`. Keep the matching `.commands.jsonl` beside it. The bundled [fallback](fallback/README.md) is a real captured local run; `--preview` remains explicitly illustrative.
 
 ## Finish
 
