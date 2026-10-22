@@ -106,8 +106,17 @@ def ensure_source():
         raise ValueError("Upstream checkout is at a different commit; refusing to reset it: " + str(SOURCE))
 
 
+def cluster_owner():
+    # Keep the original identity when an initialized checkout is moved.
+    path = RUNTIME / "owner-id"
+    owner = path.read_text().strip() if path.exists() else OWNER
+    if len(owner) != 16 or any(c not in "0123456789abcdef" for c in owner):
+        raise ValueError("Invalid demo ownership identity: " + str(path))
+    return owner
+
+
 def cluster_owned(info):
-    if (info["Config"].get("Labels") or {}).get(LABEL) != OWNER:
+    if (info["Config"].get("Labels") or {}).get(LABEL) != cluster_owner():
         raise ValueError("A cluster with a demo name already exists outside this checkout; refusing to adopt it")
     return info["Id"]
 
@@ -146,12 +155,14 @@ def ensure_clusters():
         if name in names:
             info = json.loads(capture(["docker", "inspect", "k3d-" + name + "-server-0"]))[0]
             cluster_owned(info)
+    owner = cluster_owner()
+    (RUNTIME / "owner-id").write_text(owner + "\n")
     for name, filename in CLUSTERS:
         if name not in names:
             step("Create " + name)
             run(["k3d", "cluster", "create", "-c", str(SOURCE / "k3d" / (filename + ".yaml")),
                  "--kubeconfig-update-default=false", "--kubeconfig-switch-context=false",
-                 "--runtime-label", LABEL + "=" + OWNER + "@server:*",
+                 "--runtime-label", LABEL + "=" + owner + "@server:*",
                  "--timeout", "300s"], timeout=360)
         else:
             step("Reuse " + name)

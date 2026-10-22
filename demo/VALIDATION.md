@@ -5,7 +5,7 @@ Checked on **22 October 2026**, including a real local k8gb failover and restora
 | Check | Result |
 | --- | --- |
 | Python 3.9 syntax / Bash launcher | Passed |
-| Automated suite | **57 tests passed**, including three real loopback HTTP tests run outside the sandbox |
+| Automated suite | **59 tests passed**, including three real loopback HTTP tests run outside the sandbox |
 | Provisioning | Rebuilt the three owned clusters with the minimal BIND9/k8gb/Ingress/Podinfo setup; verified parent DNS readiness and retried initial zone publication before launching |
 | Real local failover | Repeated successfully after the null-endpoint fix: baseline A → zero ready application endpoints in A → DNS/resolver/HTTP on B → original replicas restored → DNS/resolver/HTTP on A |
 | Restoration | Verified original replica count; no unfinished `beat-state.json` remained after the successful run |
@@ -13,6 +13,7 @@ Checked on **22 October 2026**, including a real local k8gb failover and restora
 | Offline playback | Completed the bundled replay in tmux: seven beats, 26 Enter prompts, both DNS authorities and resolver returned to A, HTTP 200 from A, and presenter exit status 0 with no exit banner. The dashboard begins with a populated healthy baseline and freezes at each Enter prompt |
 | Offline isolation | Completed the entire replay using system Python with site packages disabled, an empty working directory and home, `PATH=/nonexistent`, and a nonexistent kubeconfig. No Docker, Kubernetes, virtual environment, or live configuration was required. Tests also reject incomplete or mismatched captures and verify that recorded commands are never executed |
 | Ownership and isolation | Unrelated name collisions rejected before mutation; missing owned clusters can be created on retry; setup uses a private kubeconfig and changes the default only with `--merge-kubeconfig` |
+| Directory moves | Setup persists its cluster ownership identity in ignored `.runtime/owner-id`; tests verify reuse after moving the checkout, rejection of foreign clusters, and observer mount validation through a compatibility symlink |
 | Optional context import | Real `setup --merge-kubeconfig` verified DNS/HTTP and found the imported contexts already current. Controlled tests cover first setup, retained current context and namespace, refreshed demo entries, unrelated credentials and relative paths, private backups, repeated imports, invalid configs, symlinks, failed atomic replacement, and opt-in behavior after successful verification for setup/up/rehearse |
 | Installation reuse | Completion marker tied to pinned source and cluster identities; failures do not mark installation complete; `--refresh` reapplies releases |
 | Observer reuse | Requires matching checkout, configuration, and code; only the observer config is mounted, excluding Kubernetes credentials |

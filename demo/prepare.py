@@ -33,7 +33,8 @@ def observer_fingerprint(cfg):
 def reusable_observer(info, fingerprint, runtime):
     labels = info["Config"].get("Labels") or {}
     if labels.get("k8gb-talk-demo") != "observer" or not any(
-            m.get("Source") == str(runtime / "config.json") for m in info.get("Mounts", [])):
+            m.get("Source") and Path(m["Source"]).resolve() == (runtime / "config.json").resolve()
+            for m in info.get("Mounts", [])):
         raise ValueError("Existing observer is not owned by this checkout; refusing to replace it")
     return labels.get("k8gb-demo-fingerprint") == fingerprint
 

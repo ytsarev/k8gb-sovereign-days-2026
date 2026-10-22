@@ -47,6 +47,27 @@ class SetupTests(unittest.TestCase):
             run.assert_not_called()
         self.assertFalse((self.runtime / "kubeconfig").exists())
 
+    def test_moved_checkout_preserves_saved_cluster_identity(self):
+        original = "0123456789abcdef"
+        (self.runtime / "owner-id").write_text(original + "\n")
+        self.assertEqual(bootstrap.cluster_owned(self.cluster(original)), "owned-server")
+        with self.assertRaisesRegex(ValueError, "refusing to adopt"):
+            bootstrap.cluster_owned(self.cluster("another-project"))
+        (self.runtime / "owner-id").write_text("invalid")
+        with self.assertRaisesRegex(ValueError, "Invalid demo ownership"):
+            bootstrap.cluster_owned(self.cluster(original))
+
+    def test_observer_mount_accepts_compatibility_symlink(self):
+        moved = self.runtime / "moved"
+        moved.mkdir()
+        old = self.runtime / "old"
+        old.symlink_to(moved, target_is_directory=True)
+        info = {"Config": {"Labels": {"k8gb-talk-demo": "observer", "k8gb-demo-fingerprint": "same"}},
+                "Mounts": [{"Source": str(old / "config.json")}]}
+        self.assertTrue(prepare.reusable_observer(info, "same", moved))
+        with self.assertRaisesRegex(ValueError, "not owned"):
+            prepare.reusable_observer(info, "same", self.runtime / "unrelated")
+
     def test_resume_creates_only_missing_cluster_and_writes_private_kubeconfig(self):
         def capture(argv, **kwargs):
             if argv[:3] == ["k3d", "cluster", "list"]:
