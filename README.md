@@ -5,7 +5,7 @@ Yury Tsarev · 24 October 2026 · Saarbrücken
 
 Final presentation and terminal demo for Kubernetes traffic steering across independent clusters.
 
-- [PowerPoint — 19 main slides + 7 hidden appendix slides](slides/k8gb_sovereign_cloud_days_2026.pptx)
+- [PowerPoint — 20 main slides + 6 hidden appendix slides](slides/k8gb_sovereign_cloud_days_2026.pptx)
 - [PDF](slides/k8gb_sovereign_cloud_days_2026_preview.pdf)
 - [CLI demo and setup](demo/README.md)
 - [Demo runbook](demo/RUNBOOK.md) and [validation status](demo/VALIDATION.md)
@@ -18,15 +18,15 @@ The prepared talk targets **28 minutes**, leaving **7 minutes for questions** wi
 
 | Segment | Slides | Time |
 | --- | --- | --- |
-| k8gb capabilities and architecture | 1–11 | 12 min |
-| Local CLI demonstration | 12 | 6 min |
-| Operational hard parts | 13–17 | 8 min |
-| Closing | 18 | 2 min |
-| Questions | 19 | 7 min |
+| k8gb capabilities and architecture | 1–12 | 12 min |
+| Local CLI demonstration | 13 | 6 min |
+| Operational hard parts | 14–18 | 8 min |
+| Closing | 19 | 2 min |
+| Questions | 20 | 7 min |
 
 Speaker notes include the elapsed-time target for every main slide. The demo now precedes the DNS timing, application readiness, partition, and observability discussion. Readiness and the failed-payment example share one slide; the node/zone/cluster progression also shares one slide.
 
-The PowerPoint has seven hidden appendix slides after Questions, numbered A1–A7 (physical slides 20–26): components, reconciliation, delegation, normal operation, failover, failback, and availability responsibilities. They are skipped during the normal slideshow and available for questions. The PDF includes these reference pages and bookmarks after the 19 main slides.
+The components slide follows the main architecture diagram. The PowerPoint has six hidden appendix slides after Questions, numbered A1–A6 (physical slides 21–26): reconciliation, delegation, normal operation, failover, failback, and availability responsibilities. They are skipped during the normal slideshow and available for questions. The PDF includes these reference pages and bookmarks after the 20 main slides.
 
 ## Try the demo preview
 
