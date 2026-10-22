@@ -26,7 +26,7 @@ The prepared talk targets **28 minutes**, leaving **7 minutes for questions** wi
 
 Speaker notes include the elapsed-time target for every main slide. The demo now precedes the DNS timing, application readiness, partition, and observability discussion. Readiness and the failed-payment example share one slide; the node/zone/cluster progression also shares one slide.
 
-The components slide follows the main architecture diagram. The PowerPoint has six hidden appendix slides after Questions, numbered A1–A6 (physical slides 21–26): reconciliation, delegation, normal operation, failover, failback, and availability responsibilities. They are skipped during the normal slideshow and available for questions. The PDF includes these reference pages and bookmarks after the 20 main slides.
+The components slide follows the main architecture diagram. Slide 11 covers native Kubernetes resource integrations and DNS provider choices, based on the [resource reference documentation](https://www.k8gb.io/master/resource_ref/) and [DNS integration guides](https://www.k8gb.io/master/tutorials/). The PowerPoint has six hidden appendix slides after Questions, numbered A1–A6 (physical slides 21–26): reconciliation, delegation, normal operation, failover, failback, and availability responsibilities. They are skipped during the normal slideshow and available for questions. The PDF includes these reference pages and bookmarks after the 20 main slides.
 
 ## Try the demo preview
 
