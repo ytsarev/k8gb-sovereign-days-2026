@@ -1,6 +1,20 @@
 # Local failover demo runbook
 
-Allow around seven minutes. Start with both application clusters healthy and the observer already running. The presenter shows each command and a short note; press Enter to execute and advance.
+Allow six minutes, including the setup-slide introduction. Start with both application clusters healthy and the observer already running. The presenter shows each command and a short note; press Enter to execute and advance.
+
+## Six-minute conference pacing
+
+The deck reaches the demo at minute 12. Return to the DNS timing slide by minute 18.
+
+| Demo clock | Focus |
+| --- | --- |
+| 0:00–0:45 | Setup diagram: local BIND9; Cluster A/eu primary; Cluster B/us secondary. |
+| 0:45–2:15 | Baseline, Gslb strategy, and matching answers from both authorities. Explain the first manifest; identify the same strategy in the second. Advance through parent-delegation and local-target reads without a separate DNS walkthrough. |
+| 2:15–4:00 | Remove A’s application endpoints and watch DNS, cache, and HTTP move to B. |
+| 4:00–5:45 | Restore A’s original replicas and verify both authorities, resolver, and HTTP return to A. |
+| 5:45–6:00 | Return directly to “A new DNS answer is not an instant switch.” |
+
+Keep the right pane visible while commands run; explain the observed transition instead of every YAML field. This is a pacing target, not a convergence guarantee. If the live run cannot converge, restore safely and use the recorded fallback rather than reporting success. Detailed failover-state diagrams are in the deck’s hidden appendix.
 
 ## Prepare before the talk
 
