@@ -46,6 +46,8 @@ For a transcript, `./demo/demo.sh --preview --auto 0 --no-clear` runs the entire
 
 Presenter resource reads execute **`kubectl get … -o yaml`**. Selected fields from that YAML are syntax-highlighted: teal keys, green strings, and amber numbers/booleans. Field names and nesting stay unchanged, including `spec.replicas` and `status.readyReplicas`. The same YAML response supplies the validation and recovery checks; there is no second JSON fetch. Set `NO_COLOR=1` for plain YAML; redirected transcripts omit colors automatically. Repeated observation checks print the `docker logs` command and explain what is being polled. The traffic pane independently performs read-only Kubernetes sampling in the background.
 
+Presenter DNS queries use **`dig +short`** to show just the application IPs, with a cluster label above each command. The parent query retains delegation NS records and glue addresses. EndpointSlice output keeps only each slice's name, endpoint addresses, and `conditions.ready`; an empty endpoint list appears as `endpoints: []`. The observer still collects full DNS status, flags, and TTLs for validation and the traffic pane.
+
 The fault affects the **application's ready endpoints**, not the whole cluster. A's DNS stays available, making the distinction between workload readiness, authoritative publication, and client recovery visible.
 
 ## Run the real demo

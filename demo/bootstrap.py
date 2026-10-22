@@ -276,7 +276,7 @@ def wait_targets(cfg, timeout):
             parse_dig(parent, authoritative=True)
             targets = []
             for key in ("A", "B"):
-                answer = capture(dig(cfg, key, "localtargets." + cfg["hostname"]), timeout=8)
+                answer = capture(dig(cfg, key, "localtargets." + cfg["hostname"], short=False), timeout=8)
                 targets.append(addresses({"ok": True, **parse_dig(answer, cfg.get("require_authoritative_flag", True))}))
             if all(targets) and targets[0] != targets[1]:
                 return

@@ -60,7 +60,7 @@ class Playground:
                 raise AssertionError("Unexpected command: " + repr(argv))
         elif argv[:2] == ["docker", "exec"]:
             key = "B" if "@" + CFG["clusters"]["B"]["dns_address"] in argv else "A"
-            output = presenter.synthetic_dns(CFG, key)
+            output = presenter.synthetic_dns(CFG, key, short="+short" in argv)
         elif argv[:2] == ["docker", "logs"]:
             key = "A" if self.replicas else "B"
             output = "\n".join(json.dumps({"source": k, "data": v}) for k, v in observations(key).items())
@@ -206,6 +206,14 @@ class PresenterTests(unittest.TestCase):
 
 
 class ConvergenceTests(unittest.TestCase):
+    def test_short_targets_reject_dns_errors_and_non_address_output(self):
+        self.assertEqual(presenter.short_targets("172.20.0.5\n172.20.0.3\n172.20.0.5\n"),
+                         ["172.20.0.3", "172.20.0.5"])
+        self.assertEqual(presenter.short_targets("\n"), [])
+        for answer in (";; connection timed out", "alias.example.com.", "NXDOMAIN", "999.1.2.3"):
+            with self.subTest(answer=answer), self.assertRaises(ValueError):
+                presenter.short_targets(answer)
+
     def test_pinned_plugin_without_aa_requires_the_expected_direct_server(self):
         cfg = copy.deepcopy(CFG)
         cfg["require_authoritative_flag"] = False

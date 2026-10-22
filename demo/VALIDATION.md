@@ -5,7 +5,7 @@ Checked on **22 October 2026**, including a real local k8gb failover and restora
 | Check | Result |
 | --- | --- |
 | Python 3.9 syntax / Bash launcher | Passed |
-| Automated suite | **42 tests passed, no skips**, including three real loopback HTTP tests |
+| Automated suite | **43 tests passed, no skips**, including three real loopback HTTP tests |
 | Provisioning | Rebuilt the three owned clusters with the minimal BIND9/k8gb/Ingress/Podinfo setup; verified parent DNS readiness and retried initial zone publication before launching |
 | Real local failover | Passed: baseline A → zero ready application endpoints in A → DNS/resolver/HTTP on B → original replicas restored → DNS/resolver/HTTP on A |
 | Restoration | Verified original replica count; no unfinished `beat-state.json` remained after the successful run |
@@ -20,7 +20,7 @@ Checked on **22 October 2026**, including a real local k8gb failover and restora
 | Timeout | Failed convergence returns an error and attempts restoration; it is not reported as a successful transition |
 | Preview | Clearly illustrative; completes without executing Docker/Kubernetes commands or creating live recovery state |
 | tmux | Real `up --detach` launch verified with an existing tmux server: Enter executes a native YAML read; the right pane shows live DNS, endpoint readiness, and HTTP identity. Repeated launch reused the setup without restarting parent DNS; 25 requests to A and no DNS errors observed over 48 seconds |
-| Terminal output | Native `-o yaml`, highlighted selected fields, dark xterm colors, and preserved DNS column spacing; malformed YAML stops before mutation |
+| Terminal output | Native `-o yaml`, highlighted selected fields, and compact EndpointSlices; presenter queries use `dig +short`, while parent DNS shows delegation records. Read-only live checks verified both clusters' answers, local targets, readiness output, and baseline convergence. Malformed YAML or invalid target addresses stop before mutation |
 
 Run the behavior suite:
 

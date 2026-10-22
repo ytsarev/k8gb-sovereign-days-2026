@@ -3,6 +3,7 @@
 import argparse
 import copy
 import fcntl
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -15,7 +16,7 @@ import sys
 import textwrap
 import time
 
-from core import addresses, clean, load_config, parse_dig, utc, valid
+from core import addresses, clean, load_config, utc, valid
 
 HERE = Path(__file__).resolve().parent
 RUNTIME = HERE / ".runtime"
@@ -47,17 +48,26 @@ def kubectl(cfg, key, *args, request_timeout=5):
             "--request-timeout=%ss" % request_timeout, "-n", cfg["namespace"], *args]
 
 
-def dig(cfg, key, hostname=None):
+def dig(cfg, key, hostname=None, short=True):
     return ["docker", "exec", cfg["observer_container"], "dig",
             "@" + cfg["clusters"][key]["dns_address"], hostname or cfg["hostname"],
-            "A", "+tcp", "+time=2", "+tries=1", "+norecurse", "+noall", "+comments", "+answer"]
+            "A", "+tcp", "+time=2", "+tries=1", "+norecurse",
+            *(["+short"] if short else ["+noall", "+comments", "+answer"])]
 
 
-def synthetic_dns(cfg, key, hostname=None):
+def synthetic_dns(cfg, key, hostname=None, short=False):
     ip = cfg["clusters"][key]["dns_address"]
+    if short:
+        return ip + "\n"
     return (";; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 1\n"
             ";; flags: qr aa; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0\n"
             ";; ANSWER SECTION:\n%s. 10 IN A %s\n" % (hostname or cfg["hostname"], ip))
+
+
+def short_targets(output):
+    # Empty/error answers cannot become a baseline. Only literal IPv4 targets
+    # are accepted here; the observer separately validates full DNS responses.
+    return sorted({str(ipaddress.IPv4Address(line.strip())) for line in output.splitlines() if line.strip()})
 
 
 def deployment_view(data):
@@ -71,6 +81,14 @@ def gslb_view(data):
     return {"apiVersion": data["apiVersion"], "kind": data["kind"],
             "metadata": {k: data["metadata"][k] for k in ("name", "namespace")},
             "spec": data["spec"]}
+
+
+def endpointslice_view(data):
+    return {"items": [{"metadata": {"name": item["metadata"]["name"]},
+                       "endpoints": [{"addresses": endpoint.get("addresses", []),
+                                      "conditions": {k: v for k, v in endpoint.get("conditions", {}).items() if k == "ready"}}
+                                     for endpoint in item.get("endpoints", [])]}
+                      for item in data["items"]]}
 
 
 def yaml_parser():
@@ -278,17 +296,24 @@ class Presenter:
                   "The parent delegates; each cluster answers. The traffic pane uses an actual caching resolver and identifies A or B from the HTTP response.")
         parent = ["docker", "exec", self.cfg["observer_container"], "dig", "@" + self.cfg["parent_address"],
                   "-p", str(self.cfg["parent_port"]), self.cfg["hostname"], "A", "+tcp", "+time=2",
-                  "+tries=1", "+norecurse", "+noall", "+comments", "+answer", "+authority", "+additional"]
-        self.command(parent, ";; AUTHORITY SECTION:\ncloud.example.com. 30 IN NS ns-eu.cloud.example.com.\ncloud.example.com. 30 IN NS ns-us.cloud.example.com.")
+                  "+tries=1", "+norecurse", "+noall", "+authority", "+additional"]
+        self.command(parent, "cloud.example.com. 30 IN NS ns-eu.cloud.example.com.\ncloud.example.com. 30 IN NS ns-us.cloud.example.com.")
         for key in ("A", "B"):
             hostname = "localtargets." + self.cfg["hostname"]
-            output = self.command(dig(self.cfg, key, hostname), synthetic_dns(self.cfg, key, hostname))
-            self.targets[key] = addresses({"ok": True, **parse_dig(output, authoritative=self.cfg.get("require_authoritative_flag", True))})
+            output = self.read_dns(key, key, hostname)
+            self.targets[key] = short_targets(output)
             if not self.targets[key]:
                 raise ValueError("No ready application IPs in cluster " + key)
         if self.targets["A"] == self.targets["B"]:
             raise ValueError("This demo needs distinct application targets for A and B")
         self.wait_for("A", self.action_at)
+
+    def read_dns(self, key, preview_target, hostname=None):
+        self.line("  Cluster %s · %s" % (key, "local application targets" if hostname else "DNS answer"), "muted")
+        output = self.command(dig(self.cfg, key, hostname), synthetic_dns(self.cfg, preview_target, hostname, short=True))
+        if not output.strip():
+            self.line("  No A records returned.", "amber")
+        return output
 
     def failover(self):
         self.beat(4, "Remove A's ready application targets",
@@ -311,9 +336,10 @@ class Presenter:
         self.beat(5, "Follow the traffic to B",
                   "A new DNS answer and a recovered client are separate observations. Cached answers can briefly retain A; keep any failed requests visible.")
         self.command(kubectl(self.cfg, "A", "get", "endpointslices", "-l", "kubernetes.io/service-name=" + self.cfg["service"],
-                            "-o", "yaml"), {"apiVersion": "v1", "kind": "List", "items": []}, dict)
+                            "-o", "yaml"), {"apiVersion": "v1", "kind": "List", "items": [
+                                {"metadata": {"name": "frontend-podinfo-demo"}, "endpoints": []}]}, endpointslice_view)
         for key in ("A", "B"):
-            self.command(dig(self.cfg, key), synthetic_dns(self.cfg, "B"))
+            self.read_dns(key, "B")
         self.wait_for("B", self.action_at)
 
     def wait_for(self, target, since):
@@ -389,7 +415,7 @@ class Presenter:
             self.restore()
             self.beat(7, "Verify the return to A", "Check the actual application response as well as both DNS authorities. The hostname never changed.")
             for key in ("A", "B"):
-                self.command(dig(self.cfg, key), synthetic_dns(self.cfg, "A"))
+                self.read_dns(key, "A")
             self.wait_for("A", self.action_at)
             self.cue(46, 48, "7 / RESTORED")
             self.line("  A → B → A complete. Original replicas restored.", "green", True)
