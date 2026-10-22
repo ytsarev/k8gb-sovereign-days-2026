@@ -492,7 +492,7 @@ def stage(args):
 
 def main():
     parser = argparse.ArgumentParser(prog="./demo/demo.sh", description=__doc__,
-        epilog="Automated setup: ./demo/demo.sh up (prepare + tmux), setup (prepare only), or rehearse (recorded A → B → A). Use up --help for setup options.")
+        epilog="Automated setup: ./demo/demo.sh up (prepare + tmux), setup (prepare only), or rehearse (recorded A → B → A). Use up --help for setup options. Replay a captured dashboard: ./demo/demo.sh replay <recording.jsonl> [--compact].")
     parser.add_argument("command", nargs="?", default="run", choices=("run", "stage", "traffic", "status", "reset"))
     parser.add_argument("--preview", action="store_true", help="Enter-paced illustrative rehearsal; never execute Kubernetes/Docker commands")
     parser.add_argument("--config", type=Path, help="Prepared live configuration, or base config for preview")

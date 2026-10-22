@@ -8,6 +8,13 @@ fi
 ENTRYPOINT=presenter.py
 case "${1:-}" in
   up|setup|rehearse) ENTRYPOINT=bootstrap.py ;;
+  replay)
+    ENTRYPOINT=dashboard.py
+    shift
+    if [[ "${1:-}" != "--help" && "${1:-}" != "-h" ]]; then
+      set -- --replay "$@"
+    fi
+    ;;
 esac
 if [[ -x "${DEMO_DIR}/.venv/bin/python" ]]; then
   exec "${DEMO_DIR}/.venv/bin/python" -u "${DEMO_DIR}/${ENTRYPOINT}" "$@"

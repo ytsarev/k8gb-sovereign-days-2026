@@ -53,7 +53,7 @@ This restores only the saved Deployment identity and replica count, then waits f
 If the system will not converge within the rehearsed time, restore it and use an actual captured replay:
 
 ```bash
-python3 demo/dashboard.py --replay demo/recordings/rehearsal-01.jsonl --compact
+./demo/demo.sh replay demo/recordings/rehearsal-01.jsonl --compact
 ```
 
 No live recording is included in the repository. `--preview` is explicitly illustrative and is suitable for rehearsing the presentation, not as evidence of a measured failover.

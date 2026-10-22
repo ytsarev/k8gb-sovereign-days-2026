@@ -137,8 +137,10 @@ The pinned [CoreDNS CRD plugin v0.7.0](https://github.com/k8gb-io/coredns-crd-pl
 ## Record and replay
 
 ```bash
-python3 demo/dashboard.py --replay demo/recordings/rehearsal-01.jsonl
+./demo/demo.sh replay demo/recordings/rehearsal-01.jsonl
 ```
+
+Press **Space** to pause/resume, **r** to restart, and **q** to quit. Add `--compact` for a narrow terminal. Replay reads the recording locally and does not need running clusters or Docker.
 
 Recordings contain a live-origin header, configuration, original replica counts (when prepared), and the observations received during the live view or unattended rehearsal. Replay is labelled **RECORDED REPLAY** and preserves receipt timing, responses, errors and observation timestamps. Recording paths must be new; old evidence is never overwritten. Machine-specific recordings stay local. A header is provenance metadata, not a cryptographic authenticity guarantee.
 
