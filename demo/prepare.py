@@ -2,6 +2,7 @@
 """Prepare the local observer; never create or mutate Kubernetes workloads."""
 import argparse
 import copy
+import hashlib
 import ipaddress
 import json
 from pathlib import Path
@@ -22,7 +23,22 @@ def container_address(name, network):
     return str(ipaddress.ip_address(address))
 
 
-def prepare(config, check_only=False):
+def observer_fingerprint(cfg):
+    digest = hashlib.sha256(json.dumps(cfg, sort_keys=True).encode())
+    for name in ("Dockerfile", "core.py", "observer.py", "resolver.py"):
+        digest.update((HERE / name).read_bytes())
+    return digest.hexdigest()
+
+
+def reusable_observer(info, fingerprint, runtime):
+    labels = info["Config"].get("Labels") or {}
+    if labels.get("k8gb-talk-demo") != "observer" or not any(
+            m.get("Source") == str(runtime / "config.json") for m in info.get("Mounts", [])):
+        raise ValueError("Existing observer is not owned by this checkout; refusing to replace it")
+    return labels.get("k8gb-demo-fingerprint") == fingerprint
+
+
+def prepare(config, check_only=False, reuse=False):
     cfg = copy.deepcopy(config)
     # Fail before building or writing anything when the local playground is absent.
     command(["docker", "info", "--format", "{{.ServerVersion}}"])
@@ -52,31 +68,44 @@ def prepare(config, check_only=False):
         print("Read-only prerequisite checks passed. DNS and requests still require a running observer.")
         return
     existing = command(["docker", "ps", "-a", "--format", "{{.Names}}"]).splitlines()
-    if cfg["observer_container"] in existing:
-        raise ValueError("Observer already exists: %s. Reuse it, or explicitly remove that demo container before preparing again." % cfg["observer_container"])
-    image = "k8gb-talk-observer:local"
-    subprocess.run(["docker", "build", "-t", image, str(HERE)], check=True)
-    cfg["prepared_at"] = utc(now())
-    cfg["observer_image_id"] = command(["docker", "image", "inspect", "--format", "{{.Id}}", image]).strip()
     runtime = HERE / ".runtime"
     runtime.mkdir(exist_ok=True)
+    fingerprint = observer_fingerprint(cfg)
+    if cfg["observer_container"] in existing:
+        if not reuse:
+            raise ValueError("Observer already exists; use --reuse to validate and reuse it")
+        info = json.loads(command(["docker", "inspect", cfg["observer_container"]]))[0]
+        if reusable_observer(info, fingerprint, runtime) and (runtime / "config.json").is_file():
+            if not info["State"]["Running"]:
+                command(["docker", "start", cfg["observer_container"]], timeout=30)
+            print("Reusing the prepared observer and its resolver cache.")
+            return load_config(runtime / "config.json")
+        print("Replacing this checkout's observer because its configuration or code changed.")
+        command(["docker", "rm", "-f", cfg["observer_container"]], timeout=30)
+    image = "k8gb-talk-observer:local"
+    subprocess.run(["docker", "build", "-t", image, str(HERE)], check=True, timeout=600)
+    cfg["prepared_at"] = utc(now())
+    cfg["observer_image_id"] = command(["docker", "image", "inspect", "--format", "{{.Id}}", image]).strip()
     (runtime / "config.json").write_text(json.dumps(cfg, indent=2) + "\n")
     subprocess.run(["docker", "run", "-d", "--name", cfg["observer_container"],
         "--label", "k8gb-talk-demo=observer", "--network", cfg["network"],
+        "--label", "k8gb-demo-fingerprint=" + fingerprint,
         "--log-opt", "max-size=10m", "--log-opt", "max-file=2",
-        "--mount", "type=bind,src=%s,dst=/config,readonly" % runtime,
+        "--mount", "type=bind,src=%s,dst=/config/config.json,readonly" % (runtime / "config.json"),
         image], check=True)
     print("Observer started; verify DNS and request observations in the dashboard.")
     print("python3 demo/dashboard.py --live --record demo/recordings/rehearsal.jsonl")
     (HERE / "recordings").mkdir(exist_ok=True)
+    return cfg
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=HERE / "config.json")
     parser.add_argument("--check", action="store_true", help="Read-only prerequisite checks; no files/build/container")
+    parser.add_argument("--reuse", action="store_true", help="Reuse a matching observer owned by this checkout")
     args = parser.parse_args()
-    prepare(load_config(args.config), args.check)
+    prepare(load_config(args.config), args.check, args.reuse)
 
 
 if __name__ == "__main__":

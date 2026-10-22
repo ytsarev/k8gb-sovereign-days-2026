@@ -206,6 +206,18 @@ class PresenterTests(unittest.TestCase):
 
 
 class ConvergenceTests(unittest.TestCase):
+    def test_pinned_plugin_without_aa_requires_the_expected_direct_server(self):
+        cfg = copy.deepcopy(CFG)
+        cfg["require_authoritative_flag"] = False
+        data = observations("B", 100)
+        ips = [cfg["clusters"]["B"]["dns_address"]]
+        for key in ("A", "B"):
+            data["dns_" + key].update(authoritative=False, server=cfg["clusters"][key]["dns_address"], port=53)
+        self.assertTrue(presenter.converged(data, cfg, "B", ips, 99, 100))
+        self.assertFalse(presenter.converged(data, CFG, "B", ips, 99, 100))
+        data["dns_A"]["server"] = "127.0.0.1"
+        self.assertFalse(presenter.converged(data, cfg, "B", ips, 99, 100))
+
     def test_requires_fresh_matching_authorities_cache_and_real_http(self):
         data = observations("B", 100)
         ips = [CFG["clusters"]["B"]["dns_address"]]

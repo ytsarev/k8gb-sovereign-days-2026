@@ -1,44 +1,43 @@
 # Demo validation
 
-The Enter-driven refactor was checked on **22 October 2026**. Live integration with k8gb remains unverified: this workspace has no configured Kubernetes contexts.
+Checked on **22 October 2026**, including a real local k8gb failover and restoration.
 
 | Check | Result |
 | --- | --- |
 | Python 3.9 syntax / Bash launcher | Passed |
-| Automated suite | **31 tests passed, no skips**, including three real loopback HTTP tests |
-| Complete presenter flow | Controlled command responses exercised baseline → scale to zero → DNS/HTTP verification → restore; original replica count of three preserved |
-| Interrupted/failed presenter | Failure or interruption after scaling triggers restoration; quitting/EOF before execution performs no mutation |
-| Recovery identity | Replacement Deployment rejected; recovery record retained; replica precondition included in each scale command |
-| Convergence | Requires fresh observations after the action, authoritative answers and resolver matching expected IPs, and successful HTTP identifying the expected cluster; stale/divergent/failed observations rejected |
-| Timeout | Raises a failure rather than claiming a successful transition |
-| Offline preview | Entire walkthrough completes without executing any Docker/Kubernetes commands or creating live recovery state |
-| tmux presentation | Exercised all seven beats with Enter in a 160 × 44 session; verified cached-answer lag/failures, traffic on B, then restoration to A in the right pane; both panes exited cleanly |
-| Compact view | Cache lag, failed samples, cluster identity, stale observations, and presenter-controlled preview pacing covered |
-| Terminal colors | Captured actual ANSI output in a separate tmux preview; dark background and panel use xterm indices 234 and 236, replacing the incorrect teal/gray fills without changing the terminal palette |
-| Resource output | Presenter reads request native `-o yaml`; parsed actual output from a client-only kubectl dry run, exercised controlled YAML responses through the full flow, and verified command text plus highlighted field names in tmux. Invalid YAML stops before mutation. Preview also completed with Python site packages disabled |
-| Existing observation logic | EndpointSlice handling, DNS AA/TTL/error parsing, HTTP identity, unknown identity, HTTP failures, stale data, duplicate samples, and recording/replay protections remain covered |
-| Live BIND9 / Unbound / Docker / k8gb failover | **Not rehearsed in this session** |
+| Automated suite | **42 tests passed, no skips**, including three real loopback HTTP tests |
+| Provisioning | Rebuilt the three owned clusters with the minimal BIND9/k8gb/Ingress/Podinfo setup; verified parent DNS readiness and retried initial zone publication before launching |
+| Real local failover | Passed: baseline A → zero ready application endpoints in A → DNS/resolver/HTTP on B → original replicas restored → DNS/resolver/HTTP on A |
+| Restoration | Verified original replica count; no unfinished `beat-state.json` remained after the successful run |
+| Recording | Real observation JSONL saved locally under ignored `demo/recordings/`; includes request failures and intermediate DNS/cache differences |
+| Ownership and isolation | Unrelated name collisions rejected before mutation; missing owned clusters can be created on retry; kubeconfigs merged into a private file without changing the default kubeconfig |
+| Installation reuse | Completion marker tied to pinned source and cluster identities; failures do not mark installation complete; `--refresh` reapplies releases |
+| Observer reuse | Requires matching checkout, configuration, and code; only the observer config is mounted, excluding Kubernetes credentials |
+| Convergence | Requires fresh direct DNS and resolver records matching the target IPs, plus a successful HTTP response identifying the target cluster |
+| DNS flags | Pinned CoreDNS CRD plugin v0.7.0 leaves AA unset; recordings retain the actual flag and server/port. Automated setup explicitly accepts this behavior while verifying direct server identity; manually prepared configurations default to strict AA checking |
+| Interrupted/failed presenter | Controlled tests verify restoration after failure/interruption, retained recovery state on restoration failure, and no mutation when quitting before execution |
+| Recovery identity | Controlled tests reject a replacement Deployment; each scale includes the observed replica precondition |
+| Timeout | Failed convergence returns an error and attempts restoration; it is not reported as a successful transition |
+| Preview | Clearly illustrative; completes without executing Docker/Kubernetes commands or creating live recovery state |
+| tmux | Real `up --detach` launch verified with an existing tmux server: Enter executes a native YAML read; the right pane shows live DNS, endpoint readiness, and HTTP identity. Repeated launch reused the setup without restarting parent DNS; 25 requests to A and no DNS errors observed over 48 seconds |
+| Terminal output | Native `-o yaml`, highlighted selected fields, dark xterm colors, and preserved DNS column spacing; malformed YAML stops before mutation |
 
-Run the suite from the repository root:
+Run the behavior suite:
 
 ```bash
-python3 -m venv demo/.venv
-demo/.venv/bin/python -m pip install -r demo/requirements.txt
 demo/.venv/bin/python -m unittest discover -s demo -p 'test_*.py' -v
 ```
 
-The tmux test was an **illustrative preview**. The presenter integration tests supplied controlled Kubernetes/Docker responses; they prove orchestration and recovery behavior, not an actual controller failover. The HTTP tests used a real loopback server.
+Provision, verify, and record an unattended live rehearsal:
 
-[stage-preview.svg](stage-preview.svg) is a character-grid illustration of the tested presentation layout. [preview.png](preview.png) is the earlier full-screen illustrative layout. Neither is evidence of measured k8gb performance. No captured live rehearsal is included.
+```bash
+./demo/demo.sh rehearse
+```
 
-## Remaining live rehearsal
+This uses the pinned upstream checkout, k8gb v1.0.1, ingress-nginx chart 4.15.1, and matching Podinfo chart/image 6.15.0. Real setup checks exposed and corrected the Docker host's low inotify limit, k3d's separate kubeconfig documents, the upstream sample's Podinfo image/chart mismatch, premature DNS readiness, and the runtime command used during setup reuse. The plugin's unset AA flag is handled explicitly as described above.
 
-1. Start the upstream local playground with both application clusters and the parent BIND9 infrastructure cluster.
-2. Run `python3 demo/prepare.py --check`, then `python3 demo/prepare.py`. Verify the observer builds and Unbound starts; check the configured hostname and geotags.
-3. Run `./demo/demo.sh stage --record demo/recordings/rehearsal-01.jsonl` in a terminal around 160 × 44 cells.
-4. Advance through all seven beats. Verify the baseline, EndpointSlice loss in A, authoritative publication of B, resolver behavior, and actual HTTP response from B. Preserve failed samples; do not flush the cache.
-5. Restore the original replica count and verify the return to A. Check that no `beat-state.json` recovery record remains.
-6. Replay the JSONL capture; compare its observations to what was seen live. Rehearse once from a fresh observer and once with a warm cache.
-7. Verify interruption/recovery against the actual demo workload before relying on it on stage.
+The controlled presenter tests prove orchestration and recovery behavior. The live run separately verifies the actual Kubernetes → CoreDNS → Unbound → HTTP path. Timing depends on the local machine and is not a production recovery-time guarantee. Recordings stay local; the repository includes only illustrative layout assets, not captured live evidence.
 
-Whole-cluster outages, peer-DNS partitions, parent-DNS failure, and stateful recovery are separate tests. This package demonstrates two example clusters; it does not imply a two-cluster limit in k8gb.
+Before presenting, run `./demo/demo.sh up`, rehearse with Enter, and review the right-hand pane and recording. The hostname uses an Ingress integration; the deck's HTTPRoute manifest illustrates a separate supported integration.
+
+Whole-cluster outages, peer-DNS partitions, parent-DNS failure, stateful recovery, and existing-session continuity remain separate tests. This package demonstrates two example clusters; it does not imply a two-cluster limit in k8gb.

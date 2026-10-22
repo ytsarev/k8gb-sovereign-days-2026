@@ -4,23 +4,23 @@ Allow around seven minutes. Start with both application clusters healthy and the
 
 ## Prepare before the talk
 
-The upstream k8gb playground was reviewed at commit [`330d33335981b9716bc8ca245660d90893eae272`](https://github.com/k8gb-io/k8gb/tree/330d33335981b9716bc8ca245660d90893eae272). In that separate checkout, its setup entry point is `make deploy-full-local-setup`. This demo package does not provision or delete those clusters.
+The launcher provisions the upstream playground pinned at commit [`330d33335981b9716bc8ca245660d90893eae272`](https://github.com/k8gb-io/k8gb/tree/330d33335981b9716bc8ca245660d90893eae272), using k8gb v1.0.1. It keeps the checkout, isolated kubeconfig, installation state, and logs under ignored `demo/.runtime/`.
 
 The playground uses a referenced **Ingress**; the slide's declarative manifest illustrates **HTTPRoute**. Both use the failover strategy, but they are distinct route integrations.
 
-1. Start the upstream playground with its two application clusters and local BIND9 parent. Keep both configured contexts available to `kubectl`.
-2. Install the live YAML parser with `python3 -m venv demo/.venv` and `demo/.venv/bin/python -m pip install -r demo/requirements.txt`. Then run `python3 demo/prepare.py --check` and `python3 demo/prepare.py` to build/start the observer. Downloads are needed during preparation, not during the presentation. The launcher uses the virtual environment automatically.
-3. Run `./demo/demo.sh status`. This prints its read-only checks; it does not inject a fault.
+1. Start Docker and install any missing CLI prerequisites listed in [the README](README.md#run-the-real-demo).
+2. Run `./demo/demo.sh setup`. This creates all three clusters, installs the playground and observer, and verifies real DNS and HTTP traffic. Rerunning it reuses resources owned by this checkout.
+3. Run `./demo/demo.sh rehearse`. This automatically executes the full A → B → A sequence, restores the original replicas, and saves a new JSONL recording. A failed transition returns a nonzero status.
 4. Open a full-screen terminal around 160 × 44 cells, with a large readable font.
-5. Rehearse a complete live run and retain the recording. Live integration has not yet been validated in this workspace.
+5. Rehearse once using Enter and the traffic pane, and retain the recording. Review [validation status](VALIDATION.md) for what has been exercised.
 
 ## On stage
 
 ```bash
-./demo/demo.sh stage --record demo/recordings/talk-01.jsonl
+./demo/demo.sh up
 ```
 
-Use a new filename for each capture. `--no-notes` hides the short speaker notes if desired. Every presenter Kubernetes command includes the explicit context; the user's current context is unchanged.
+The recording filename is generated automatically. To choose one, use `up --record demo/recordings/talk-01.jsonl`. Once setup is complete, `stage --record PATH --no-notes` launches directly with notes hidden. Every presenter Kubernetes command includes the explicit context; setup and both panes use the isolated demo kubeconfig.
 
 | Beat | Say / show |
 | --- | --- |
@@ -37,6 +37,8 @@ The left pane pauses before each command and before moving to the next beat. The
 The observer queries Unbound separately from its HTTP lookup. Its displayed TTL is the last returned TTL, not a simulated countdown. The convergence check requires both authoritative answers, the resolver, and the HTTP identity to match the expected target using fresh observations after the action.
 
 ## If a step fails
+
+For provisioning failures, inspect `demo/.runtime/setup.log`, correct the reported cause, and rerun `setup`. Missing clusters are created; completed installations are reused. `setup --refresh` reapplies installations. Setup refuses to run while a live presenter holds the lock or an unfinished recovery record exists.
 
 The presenter stops on failed commands or a convergence timeout and attempts to restore A automatically. It prints the restore commands. `q` plus Enter or Ctrl-C uses the same cleanup. A failed restoration keeps the recovery record.
 

@@ -105,13 +105,14 @@ def parse_dig(output, authoritative=False):
     return {"records": records, "authoritative": aa, "rcode": rcode}
 
 
-def query_dns(hostname, address, port=53, authoritative=False):
+def query_dns(hostname, address, port=53, authoritative=False, require_aa=True):
     def query():
-        return parse_dig(command([
+        response = parse_dig(command([
             "dig", "@" + address, "-p", str(port), hostname, "A", "+tcp",
             "+time=2", "+tries=1", "+noall", "+comments", "+answer",
             "+norecurse" if authoritative else "+recurse"
-        ], timeout=4), authoritative)
+        ], timeout=4), authoritative and require_aa)
+        return {**response, "server": address, "port": port}
     return observed(query)
 
 

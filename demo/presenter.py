@@ -132,8 +132,12 @@ def converged(latest, cfg, target, target_ips, since, clock):
                 return False
         elif addresses(obs) != sorted(target_ips):
             return False
-        elif source.startswith("dns_") and not obs.get("authoritative"):
-            return False
+        elif source.startswith("dns_"):
+            if cfg.get("require_authoritative_flag", True):
+                if not obs.get("authoritative"):
+                    return False
+            elif obs.get("server") != cfg["clusters"][source[-1]]["dns_address"] or obs.get("port") != 53:
+                return False
     return True
 
 
@@ -221,7 +225,7 @@ class Presenter:
         else:
             # Preserve line breaks, remove terminal escapes from external output.
             for line in output.rstrip().splitlines():
-                self.line(clean(line, 4000))
+                self.line(clean(line.expandtabs(4), 4000))
         self.line()
         return data if view else output
 
@@ -279,7 +283,7 @@ class Presenter:
         for key in ("A", "B"):
             hostname = "localtargets." + self.cfg["hostname"]
             output = self.command(dig(self.cfg, key, hostname), synthetic_dns(self.cfg, key, hostname))
-            self.targets[key] = addresses({"ok": True, **parse_dig(output, authoritative=True)})
+            self.targets[key] = addresses({"ok": True, **parse_dig(output, authoritative=self.cfg.get("require_authoritative_flag", True))})
             if not self.targets[key]:
                 raise ValueError("No ready application IPs in cluster " + key)
         if self.targets["A"] == self.targets["B"]:
@@ -426,6 +430,11 @@ def stage(args):
     right = [sys.executable, "-u", str(HERE / "presenter.py"), "traffic", *common]
     if args.record:
         right.extend(["--record", str(args.record.resolve())])
+    # An existing tmux server can retain a different environment. Pass the
+    # selected kubeconfig explicitly to both new panes, without changing it globally.
+    if os.environ.get("KUBECONFIG"):
+        prefix = ["env", "KUBECONFIG=" + os.environ["KUBECONFIG"]]
+        left, right = prefix + left, prefix + right
     def tmux(*parts):
         return subprocess.check_output(["tmux", *parts], text=True).strip()
     created = False
@@ -452,7 +461,8 @@ def stage(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="./demo/demo.sh", description=__doc__)
+    parser = argparse.ArgumentParser(prog="./demo/demo.sh", description=__doc__,
+        epilog="Automated setup: ./demo/demo.sh up (prepare + tmux), setup (prepare only), or rehearse (recorded A → B → A). Use up --help for setup options.")
     parser.add_argument("command", nargs="?", default="run", choices=("run", "stage", "traffic", "status", "reset"))
     parser.add_argument("--preview", action="store_true", help="Enter-paced illustrative rehearsal; never execute Kubernetes/Docker commands")
     parser.add_argument("--config", type=Path, help="Prepared live configuration, or base config for preview")

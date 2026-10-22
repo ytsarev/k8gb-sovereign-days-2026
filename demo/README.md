@@ -48,22 +48,33 @@ Presenter resource reads execute **`kubectl get … -o yaml`**. Selected fields 
 
 The fault affects the **application's ready endpoints**, not the whole cluster. A's DNS stays available, making the distinction between workload readiness, authoritative publication, and client recovery visible.
 
-## Prepare the live demo
+## Run the real demo
 
-The upstream local playground must already be running with both applications ready. See [the runbook](RUNBOOK.md).
+Start Docker, then run this from the repository root:
 
 ```bash
-python3 -m venv demo/.venv
-demo/.venv/bin/python -m pip install -r demo/requirements.txt
-python3 demo/prepare.py --check
-python3 demo/prepare.py
-./demo/demo.sh status
-./demo/demo.sh stage --record demo/recordings/rehearsal-01.jsonl
+./demo/demo.sh up
 ```
 
-The launcher automatically uses `demo/.venv` when present. PyYAML parses the native Kubernetes YAML in live mode; install it before presenting. The virtual environment is ignored by Git. Preview mode still works with the standard library alone.
+This installs the local Python dependency, downloads a pinned k8gb checkout, creates the parent BIND9 cluster and two application clusters, installs the playground, prepares the observer, and verifies both authoritative DNS answers, the resolver, and an actual HTTP response from A. It then opens the Enter-driven tmux presentation and records live observations to a new file under `demo/recordings/`.
 
-Preparation discovers Docker-network IPs, checks both Gslb resources, builds a local observer image, and creates only `k8gb-talk-observer`. It publishes no host ports and will not replace an existing container. Build and pre-pull dependencies before an offline presentation. The observer runs Unbound, DNS probes, and HTTP requests continuously, independently of the command pane.
+Prerequisites: **Python 3.9+, Docker, k3d, kubectl, Helm, Git, Make, and tmux**. The launcher reports missing tools; it does not install global packages. Initial setup needs internet access and enough Docker resources for three additional Kubernetes clusters. Setup progress is shown in the terminal; detailed output goes to `demo/.runtime/setup.log`.
+
+```bash
+./demo/demo.sh setup       # Provision and verify, without opening tmux
+./demo/demo.sh rehearse    # Provision if needed; run and record A → B → A automatically
+./demo/demo.sh up --detach # Prepare both panes and print the tmux attach command
+```
+
+Setup resumes after failures and reuses clusters created by this checkout. A name collision with an unrelated cluster stops setup. Repeated runs reuse matching Helm installations and the observer's cache; `--refresh` reapplies the pinned releases and manifests. Use `--record PATH` with `up` or `rehearse` to choose a new recording filename. `--timeout SECONDS` sets the transition wait (180 seconds by default for these commands).
+
+All Kubernetes access uses `demo/.runtime/kubeconfig` with private file permissions. Setup does not modify your default kubeconfig. The launcher selects this file when `KUBECONFIG` is unset, and passes it explicitly into both tmux panes. To inspect this playground manually, use `export KUBECONFIG="$PWD/demo/.runtime/kubeconfig"`.
+
+k3d nodes share the Docker host's Linux file-watcher quota. Setup raises `fs.inotify.max_user_instances` to at least 8192 and `fs.inotify.max_user_watches` to at least 1048576 when necessary. On macOS these settings apply inside the Docker VM. Existing higher limits are preserved.
+
+The observer runs Unbound, DNS probes, and HTTP requests continuously, independently of the command pane. Only its configuration file is mounted into the container; the kubeconfig stays on the host. Prepare and rehearse before going offline. `.runtime/`, `.venv/`, and recordings are ignored by Git.
+
+For an already prepared playground, `./demo/demo.sh stage --record PATH` opens the presentation directly without rerunning setup. Manual observer preparation remains available through `prepare.py --check` and `prepare.py --reuse`; supply the appropriate `KUBECONFIG` when using Python entry points directly.
 
 The presenter checks the baseline again and captures the replica count immediately relevant to that run. An unfinished mutation is saved in `demo/.runtime/beat-state.json` before scaling. A second presenter cannot run concurrently. A new live run refuses to overwrite an unfinished recovery record.
 
@@ -78,7 +89,7 @@ The presenter checks the baseline again and captures the replica count immediate
 
 Parent BIND9 runs in a **third infrastructure cluster**, separate from the two application clusters. Its host port is 1053; the observer uses the server container's NodePort 30053. Settings are in [config.json](config.json); live mode uses the prepared `.runtime/config.json`. Pass `--config PATH` to use another prepared file.
 
-Each convergence check has a 90-second bound, configurable with `--timeout`. It requires fresh observations after the action: both authoritative A-record sets and the resolver match the target IPs, and a successful HTTP response identifies the expected cluster. A timeout fails the run and triggers restoration; it is never reported as success.
+Each convergence check is bounded: 180 seconds for `up` and `rehearse`, or 90 seconds when launching `run` or `stage` directly. Override either with `--timeout`. Checks require fresh observations after the action: both authoritative A-record sets and the resolver match the target IPs, and a successful HTTP response identifies the expected cluster. A timeout fails the run and triggers restoration; it is never reported as success.
 
 ## Restore and finish
 
@@ -112,12 +123,14 @@ It needs 110 × 38 cells, preferably 132 × 44. In preview/replay, `space` pause
 ## What is measured
 
 - **Host:** explicit-context `kubectl` reads of Deployment and EndpointSlices, bounded by timeouts. Endpoint readiness follows the reviewed k8gb criterion: nonempty addresses with `ready=true` or an unset condition. The UI counts endpoints, not healthy-record IP entries or clusters. It is scoped to this demo's one backend Service, not a general implementation of all Gslb readiness modes.
-- **Observer container:** direct TCP A queries to both CoreDNS authorities, requiring the AA flag; an active query to local Unbound; and a fresh HTTP connection to the unchanged hostname. All run in one persistent observer process outside A and B. Each observation has a timestamp; the nominal interval is two seconds and slow cycles take longer.
+- **Observer container:** direct, nonrecursive TCP A queries to both configured CoreDNS servers; an active query to local Unbound; and a fresh HTTP connection to the unchanged hostname. All run in one persistent observer process outside A and B. Each observation has a timestamp; the nominal interval is two seconds and slow cycles take longer.
 - **Resolver:** Unbound follows the local parent zone's delegation and caches actual responses. Displayed TTL is the value in the last DNS response; it is not an animated estimate. The extra DNS sample is active and can populate the cache. HTTP performs a separate system lookup through the same resolver, so its answer can change between the two observations.
 - **Application identity:** parsed from podinfo's `message` (`Ingress NGINX: eu` / `us`), never inferred from DNS or manually chosen in the dashboard. HTTP uses normal hostname resolution, no proxy, no redirects, no manual IP override and a fresh connection per request. It does not demonstrate existing-session migration or business-transaction correctness.
 - **Errors:** unsuccessful reads are unknown, not zero; old observations become stale after ten seconds. Failure responses stay in the request history. The timeline reports observation times, not exact internal controller transition times. Host and Docker VM clocks should be synchronized.
 
 Unbound uses a private unsigned demo zone and a configured authoritative stub, rather than a public upstream resolver. Its `stub-prime: no` avoids replacing the configured parent address with the playground's `ns.example.com = 127.0.0.1` record. Child delegations are still followed. See the [official Unbound stub-zone documentation](https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html#stub-zone-options).
+
+The pinned [CoreDNS CRD plugin v0.7.0](https://github.com/k8gb-io/coredns-crd-plugin/blob/v0.7.0/service/gateway/gateway.go) leaves the AA flag unset when constructing replies. Automated setup records `require_authoritative_flag: false` explicitly in the prepared configuration. Observations preserve the actual flag and queried server; convergence checks require each configured server and port, the expected IP sets, fresh samples, and the correct HTTP identity. The full dashboard displays `AA unset`. Other manually prepared configurations retain strict AA checking by default.
 
 ## Record and replay
 
@@ -125,7 +138,7 @@ Unbound uses a private unsigned demo zone and a configured authoritative stub, r
 python3 demo/dashboard.py --replay demo/recordings/rehearsal-01.jsonl
 ```
 
-Recordings contain a live-origin header, configuration, original replica counts (when prepared), and the observations received while the dashboard was open. Replay is labelled **RECORDED REPLAY** and preserves receipt timing, responses, errors and observation timestamps. Recording paths must be new; old evidence is never overwritten. No real rehearsal recording is included yet. A header is provenance metadata, not a cryptographic authenticity guarantee.
+Recordings contain a live-origin header, configuration, original replica counts (when prepared), and the observations received during the live view or unattended rehearsal. Replay is labelled **RECORDED REPLAY** and preserves receipt timing, responses, errors and observation timestamps. Recording paths must be new; old evidence is never overwritten. Machine-specific recordings stay local. A header is provenance metadata, not a cryptographic authenticity guarantee.
 
 For a text/SVG layout snapshot:
 
@@ -136,7 +149,7 @@ python3 demo/dashboard.py --preview --snapshot --at 18 --svg /tmp/k8gb-cli.svg
 ## Validation
 
 ```bash
-python3 -m unittest discover -s demo -p 'test_*.py' -v
+demo/.venv/bin/python -m unittest discover -s demo -p 'test_*.py' -v
 ```
 
-See [validation status](VALIDATION.md). The Enter-driven preview, tmux layout, and automated behavior checks were exercised; live integration has **not** been rehearsed. Run the complete real A → B → A sequence, retain the recording, and verify restoration before using live mode on stage.
+See [validation status](VALIDATION.md). The real local A → B → A sequence has passed with recorded DNS, resolver, and HTTP observations. Rehearse on the presentation machine before the talk; use the retained recording for replay if needed.

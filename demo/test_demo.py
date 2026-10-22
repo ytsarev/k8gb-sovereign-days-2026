@@ -69,6 +69,15 @@ class DNSTests(unittest.TestCase):
         self.assertIn("+norecurse", command.call_args.args[0])
         self.assertEqual(command.call_args.kwargs["timeout"], 4)
 
+    def test_pinned_plugin_query_preserves_unset_aa_and_direct_server_identity(self):
+        with patch("core.command", return_value=DIG.replace("qr aa;", "qr;")) as command:
+            data = core.query_dns("failover.cloud.example.com", "172.20.0.5", 53, True, False)
+        self.assertTrue(data["ok"])
+        self.assertFalse(data["authoritative"])
+        self.assertEqual(data["server"], "172.20.0.5")
+        self.assertEqual(data["port"], 53)
+        self.assertIn("+norecurse", command.call_args.args[0])
+
 
 class Handler(http.server.BaseHTTPRequestHandler):
     status = 200

@@ -19,7 +19,7 @@ def main():
             jobs = {}
             for key in ("A", "B"):
                 jobs["dns_" + key] = pool.submit(query_dns, cfg["hostname"],
-                    cfg["clusters"][key]["dns_address"], 53, True)
+                    cfg["clusters"][key]["dns_address"], 53, True, cfg.get("require_authoritative_flag", True))
             # This is an active query through the client's actual caching resolver,
             # not a passive cache dump or a predictor of the following HTTP lookup.
             jobs["resolver"] = pool.submit(query_dns, cfg["hostname"], "127.0.0.1")

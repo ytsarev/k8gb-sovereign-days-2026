@@ -22,7 +22,13 @@ Use a terminal around 160 columns × 44 rows, Python 3.9+, and tmux. Press Enter
 
 ![Illustrative command and traffic panes](demo/stage-preview.svg)
 
-The preview uses clearly labelled illustrative data. Live mode observes two application clusters, their CoreDNS authorities, a local BIND9 parent, a caching resolver, and HTTP responses. It requires the upstream k8gb playground described in the [runbook](demo/RUNBOOK.md). For live mode, prepare the playground, then run `./demo/demo.sh stage --record demo/recordings/rehearsal-01.jsonl`. Live integration has not yet been rehearsed.
+The preview uses clearly labelled illustrative data. For the real local demo, start Docker and run:
+
+```bash
+./demo/demo.sh up
+```
+
+This provisions the clusters, local BIND9, k8gb, and observer; checks real DNS and HTTP traffic; then opens the Enter-driven presentation with recording. `./demo/demo.sh rehearse` runs and records the complete A → B → A sequence automatically. See [prerequisites and setup](demo/README.md#run-the-real-demo) and the [runbook](demo/RUNBOOK.md).
 
 ## Project and contact
 

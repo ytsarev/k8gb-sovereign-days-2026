@@ -199,7 +199,8 @@ def render(state, width, height, clock, paused=False, finished=False):
         label, fg = describe(dns, clock, cfg, lambda o: (", ".join(addresses(o)) or "NOERROR / no A records", accent))
         put(14, label, fg, True)
         if valid(dns, clock, cfg["stale_after"]) and dns.get("records"):
-            put(15, "TTL at query: %ss  ·  AA verified" % min(r["ttl"] for r in dns["records"]), "muted")
+            put(15, "TTL at query: %ss  ·  AA %s" % (min(r["ttl"] for r in dns["records"]),
+                                                   "set" if dns.get("authoritative") else "unset"), "muted")
         put(16, age_label(dns, clock), "muted")
     c.box(left, 19, half, 8, "CLIENT RESOLVER  /  UNBOUND", "amber")
     resolver = obs.get("resolver")
