@@ -4,7 +4,7 @@ Allow six minutes, including the setup-slide introduction. Start with both appli
 
 ## Six-minute conference pacing
 
-The deck reaches the demo at 12:15 elapsed (slide 14). Return to the DNS timing slide by 18:15 elapsed.
+The deck reaches the demo at 12:15 elapsed (slide 14). Return to the first demo-recap slide (15) by 18:15 elapsed. Summarize normal operation, failover, and failback in one minute, then start the DNS timing slide (18) at 19:15 elapsed.
 
 | Demo clock | Focus |
 | --- | --- |
@@ -12,9 +12,9 @@ The deck reaches the demo at 12:15 elapsed (slide 14). Return to the DNS timing 
 | 0:45–2:15 | Baseline, Gslb strategy, and matching answers from both authorities. Explain the first manifest; identify the same strategy in the second. Advance through parent-delegation and local-target reads without a separate DNS walkthrough. |
 | 2:15–4:00 | Remove A’s application endpoints and watch DNS, cache, and HTTP move to B. |
 | 4:00–5:45 | Restore A’s original replicas and verify both authorities, resolver, and HTTP return to A. |
-| 5:45–6:00 | Return directly to “A new DNS answer is not an instant switch.” |
+| 5:45–6:00 | Return to “Normal operation: both authorities prefer A” for the visual recap. |
 
-Keep the right pane visible while commands run; explain the observed transition instead of every YAML field. This is a pacing target, not a convergence guarantee. If the live run cannot converge, restore safely and use the recorded fallback rather than reporting success. Detailed failover-state diagrams are in the deck’s hidden appendix.
+Keep the right pane visible while commands run; explain the observed transition instead of every YAML field. This is a pacing target, not a convergence guarantee. If the live run cannot converge, restore safely and use the recorded fallback rather than reporting success. The three failover-state diagrams now follow the demo in the main deck (slides 15–17): allow 15 seconds for normal operation, 30 for failover, and 15 for failback. Use the final reminder about client caches to transition into Part 2.
 
 ## Prepare before the talk
 
