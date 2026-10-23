@@ -18,17 +18,17 @@ The prepared talk targets **28 minutes**, leaving **7 minutes for questions** wi
 
 | Segment | Slides | Time |
 | --- | --- | --- |
-| k8gb capabilities and architecture | 1–12 | 12 min |
-| Local CLI demonstration | 13 | 6 min |
-| Operational hard parts | 14–18 | 8 min |
-| Closing and community | 19–20 | 2 min |
+| k8gb capabilities and architecture | 1–11 | 11 min 15 sec |
+| Local CLI demonstration | 12 | 6 min |
+| Operational hard parts | 13–17 | 8 min |
+| Closing, community and production case study | 18–20 | 2 min 45 sec |
 | Questions | 21 | 7 min |
 
 Speaker notes include the elapsed-time target for every main slide. The demo now precedes the DNS timing, application readiness, partition, and observability discussion. Readiness and the failed-payment example share one slide; the node/zone/cluster progression also shares one slide.
 
-The components slide follows the main architecture diagram. Slide 11 covers native Kubernetes resource integrations and DNS provider choices, based on the [resource reference documentation](https://www.k8gb.io/master/resource_ref/) and [DNS integration guides](https://www.k8gb.io/master/tutorials/). The PowerPoint has six hidden appendix slides after Questions, numbered A1–A6 (physical slides 22–27): reconciliation, delegation, normal operation, failover, failback, and availability responsibilities. They are skipped during the normal slideshow and available for questions. The PDF includes these reference pages and bookmarks after the 21 main slides.
+The components slide follows the main architecture diagram. Slide 10 covers native Kubernetes resource integrations and DNS provider choices, based on the [resource reference documentation](https://www.k8gb.io/master/resource_ref/) and [DNS integration guides](https://www.k8gb.io/master/tutorials/). The PowerPoint has six hidden appendix slides after Questions, numbered A1–A6 (physical slides 22–27): reconciliation, delegation, normal operation, failover, failback, and availability responsibilities. They are skipped during the normal slideshow and available for questions. The PDF includes these reference pages and bookmarks after the 21 main slides.
 
-The closing section includes a community snapshot checked on 23 October 2026: CNCF Incubating status, seven public adopters, 46 contributors (excluding automated accounts), and 1,335 GitHub stars. The adopter grid uses original brand logos, and the GitHub figure includes a star icon. Sources are linked in the slide notes. The final Questions slide links to the project, GitHub, CNCF Slack, community meetings, the public adopters list, and the speaker’s LinkedIn profile.
+The closing section includes a community snapshot checked on 23 October 2026: CNCF Incubating status, seven public adopters, 46 contributors (excluding automated accounts), and 1,335 GitHub stars. The adopter grid uses original brand logos, and the GitHub figure includes a star icon. Sources are linked in the slide notes. The Millennium bcp production case study immediately follows the public adopters slide, before Questions. The final Questions slide links to the project, GitHub, CNCF Slack, community meetings, the public adopters list, and the speaker’s LinkedIn profile.
 
 ## Try the demo preview
 
