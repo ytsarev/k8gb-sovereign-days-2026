@@ -4,7 +4,7 @@ Allow six minutes, including the setup-slide introduction. Start with both appli
 
 ## Six-minute conference pacing
 
-The deck reaches the demo at 11:15 elapsed (slide 13). Return to the DNS timing slide by 17:15 elapsed.
+The deck reaches the demo at 12:15 elapsed (slide 14). Return to the DNS timing slide by 18:15 elapsed.
 
 | Demo clock | Focus |
 | --- | --- |
