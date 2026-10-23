@@ -28,7 +28,7 @@ Speaker notes include the elapsed-time target for every main slide. The demo now
 
 The components slide follows the main architecture diagram. Slide 11 covers native Kubernetes resource integrations and DNS provider choices, based on the [resource reference documentation](https://www.k8gb.io/master/resource_ref/) and [DNS integration guides](https://www.k8gb.io/master/tutorials/). The PowerPoint has six hidden appendix slides after Questions, numbered A1–A6 (physical slides 22–27): reconciliation, delegation, normal operation, failover, failback, and availability responsibilities. They are skipped during the normal slideshow and available for questions. The PDF includes these reference pages and bookmarks after the 21 main slides.
 
-The closing section includes a community snapshot checked on 23 October 2026: CNCF Incubating status, seven public adopters, seven maintainers, and 1,335 GitHub stars. Sources are linked in the slide notes. The final Questions slide links to the project, GitHub, CNCF Slack, community meetings, the public adopters list, and the speaker’s LinkedIn profile.
+The closing section includes a community snapshot checked on 23 October 2026: CNCF Incubating status, seven public adopters, 46 contributors (excluding automated accounts), and 1,335 GitHub stars. The adopter grid uses original brand logos, and the GitHub figure includes a star icon. Sources are linked in the slide notes. The final Questions slide links to the project, GitHub, CNCF Slack, community meetings, the public adopters list, and the speaker’s LinkedIn profile.
 
 ## Try the demo preview
 
