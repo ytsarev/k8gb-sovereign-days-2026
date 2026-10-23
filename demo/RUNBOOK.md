@@ -4,7 +4,7 @@ Allow six minutes, including the setup-slide introduction. Start with both appli
 
 ## Six-minute conference pacing
 
-The deck reaches the demo at 12:15 elapsed (slide 14). Return to the first demo-recap slide (15) by 18:15 elapsed. Summarize normal operation, failover, and failback in one minute, then start the DNS timing slide (18) at 19:15 elapsed.
+The deck reaches the demo at 12:45 elapsed (slide 15). Return to the first demo-recap slide (16) by 18:45 elapsed. Summarize normal operation, failover, and failback in one minute, then start the DNS timing slide (19) at 19:45 elapsed.
 
 | Demo clock | Focus |
 | --- | --- |
@@ -14,7 +14,7 @@ The deck reaches the demo at 12:15 elapsed (slide 14). Return to the first demo-
 | 4:00–5:45 | Restore A’s original replicas and verify both authorities, resolver, and HTTP return to A. |
 | 5:45–6:00 | Return to “Normal operation: both authorities prefer A” for the visual recap. |
 
-Keep the right pane visible while commands run; explain the observed transition instead of every YAML field. This is a pacing target, not a convergence guarantee. If the live run cannot converge, restore safely and use the recorded fallback rather than reporting success. The three failover-state diagrams now follow the demo in the main deck (slides 15–17): allow 15 seconds for normal operation, 30 for failover, and 15 for failback. Use the final reminder about client caches to transition into Part 2.
+Keep the right pane visible while commands run; explain the observed transition instead of every YAML field. This is a pacing target, not a convergence guarantee. If the live run cannot converge, restore safely and use the recorded fallback rather than reporting success. The three failover-state diagrams now follow the demo in the main deck (slides 16–18): allow 15 seconds for normal operation, 30 for failover, and 15 for failback. Use the final reminder about client caches to transition into Part 2.
 
 ## Prepare before the talk
 

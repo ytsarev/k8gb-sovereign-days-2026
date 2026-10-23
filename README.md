@@ -5,7 +5,7 @@ Yury Tsarev · 24 October 2026 · Saarbrücken
 
 Final presentation and terminal demo for Kubernetes traffic steering across independent clusters.
 
-- [PowerPoint — 25 slides](slides/k8gb_sovereign_cloud_days_2026.pptx)
+- [PowerPoint — 26 slides](slides/k8gb_sovereign_cloud_days_2026.pptx)
 - [PDF](slides/k8gb_sovereign_cloud_days_2026_preview.pdf)
 - [CLI demo and setup](demo/README.md)
 - [Demo runbook](demo/RUNBOOK.md) and [validation status](demo/VALIDATION.md)
@@ -14,20 +14,20 @@ The PowerPoint includes speaker notes. The PDF is a preview rendered from the sa
 
 ## Presentation pacing
 
-The prepared talk targets **28 minutes**, leaving **7 minutes for questions** within 35 minutes.
+The prepared talk targets **28 minutes 30 seconds**, leaving **6 minutes 30 seconds for questions** within 35 minutes.
 
 | Segment | Slides | Time |
 | --- | --- | --- |
-| k8gb capabilities and architecture | 1–13 | 12 min 15 sec |
-| Local CLI demonstration | 14 | 6 min |
-| Demo recap: normal → failover → failback | 15–17 | 1 min |
-| Operational hard parts and testing conclusion | 18–22 | 7 min |
-| Community and production case study | 23–24 | 1 min 45 sec |
-| Questions | 25 | 7 min |
+| k8gb capabilities and architecture | 1–14 | 12 min 45 sec |
+| Local CLI demonstration | 15 | 6 min |
+| Demo recap: normal → failover → failback | 16–18 | 1 min |
+| Operational hard parts and testing conclusion | 19–23 | 7 min |
+| Community and production case study | 24–25 | 1 min 45 sec |
+| Questions | 26 | 6 min 30 sec |
 
-Speaker notes include the elapsed-time target for every main slide. The demo is followed immediately by three visual recap slides: normal operation, failover, and failback (15–17), budgeted at 15, 30, and 15 seconds. Part 2 starts with DNS timing on slide 18, using the recap’s cache-lag reminder as the transition. The partition slide (20) leads directly into traffic, data and session recovery responsibilities (21), followed by the testing conclusion (22). Readiness and partition each have a 90-second budget; availability responsibilities has one minute, preserving the overall timing. Readiness and the failed-payment example share one slide; the node/zone/cluster progression also shares one slide. Resilience testing and the technical closing now share one slide (22): define expectations, rehearse scenarios, verify the result, and automate repeated checks in your environment. Each action has one short supporting line; the detailed scenarios remain in speaker notes. This applies to failover, failback, and the other Gslb strategies you use.
+Speaker notes include the elapsed-time target for every main slide. Slide 3 zooms into three independent clusters across two cloud providers and an on-premises datacenter in different regions, with one application hostname. The k8gb overview (slide 4) explicitly expands the name to Kubernetes Global Balancer. The demo is followed immediately by three visual recap slides: normal operation, failover, and failback (16–18), budgeted at 15, 30, and 15 seconds. Part 2 starts with DNS timing on slide 19, using the recap’s cache-lag reminder as the transition. The partition slide (21) leads directly into traffic, data and session recovery responsibilities (22), followed by the testing conclusion (23). Readiness and partition each have a 90-second budget; availability responsibilities has one minute, preserving the overall timing. Readiness and the failed-payment example share one slide; the node/zone/cluster progression also shares one slide. Resilience testing and the technical closing now share one slide (23): define expectations, rehearse scenarios, verify the result, and automate repeated checks in your environment. Each action has one short supporting line; the detailed scenarios remain in speaker notes. This applies to failover, failback, and the other Gslb strategies you use.
 
-The architecture sequence is reference diagram (slide 5), component roles (6), reconciliation loops (7), the client request path (8), then DNS delegation (9). The reconciliation and delegation slides each have a one-minute budget; the architecture, request-path, strategy, and integrations explanations each use one minute to preserve the overall schedule. Slide 12 covers native Kubernetes resource integrations and DNS provider choices, based on the [resource reference documentation](https://www.k8gb.io/master/resource_ref/) and [DNS integration guides](https://www.k8gb.io/master/tutorials/). All 25 slides are part of the main slideshow, with Questions last and no hidden appendix. The PDF bookmarks include the demo recap and the start of Part 2.
+The architecture sequence is reference diagram (slide 6), component roles (7), reconciliation loops (8), the client request path (9), then DNS delegation (10). The reconciliation and delegation slides each have a one-minute budget; the architecture, request-path, strategy, and integrations explanations each use one minute to preserve the overall schedule. Slide 13 covers native Kubernetes resource integrations and DNS provider choices, based on the [resource reference documentation](https://www.k8gb.io/master/resource_ref/) and [DNS integration guides](https://www.k8gb.io/master/tutorials/). All 26 slides are part of the main slideshow, with Questions last and no hidden appendix. The PDF bookmarks include the demo recap and the start of Part 2.
 
 The closing section includes a community snapshot checked on 23 October 2026: CNCF Incubating status, seven public adopters, 46 contributors (excluding automated accounts), and 1,335 GitHub stars. The adopter grid uses original brand logos, and the GitHub figure includes a star icon. Sources are linked in the slide notes. The Millennium bcp production case study immediately follows the public adopters slide, before Questions. The final Questions slide links to the project, GitHub, CNCF Slack, community meetings, the public adopters list, and the speaker’s LinkedIn profile.
 
