@@ -5,7 +5,7 @@ Yury Tsarev · 24 October 2026 · Saarbrücken
 
 Final presentation and terminal demo for Kubernetes traffic steering across independent clusters.
 
-- [PowerPoint — 20 main slides + 6 hidden appendix slides](slides/k8gb_sovereign_cloud_days_2026.pptx)
+- [PowerPoint — 21 main slides + 6 hidden appendix slides](slides/k8gb_sovereign_cloud_days_2026.pptx)
 - [PDF](slides/k8gb_sovereign_cloud_days_2026_preview.pdf)
 - [CLI demo and setup](demo/README.md)
 - [Demo runbook](demo/RUNBOOK.md) and [validation status](demo/VALIDATION.md)
@@ -21,12 +21,14 @@ The prepared talk targets **28 minutes**, leaving **7 minutes for questions** wi
 | k8gb capabilities and architecture | 1–12 | 12 min |
 | Local CLI demonstration | 13 | 6 min |
 | Operational hard parts | 14–18 | 8 min |
-| Closing | 19 | 2 min |
-| Questions | 20 | 7 min |
+| Closing and community | 19–20 | 2 min |
+| Questions | 21 | 7 min |
 
 Speaker notes include the elapsed-time target for every main slide. The demo now precedes the DNS timing, application readiness, partition, and observability discussion. Readiness and the failed-payment example share one slide; the node/zone/cluster progression also shares one slide.
 
-The components slide follows the main architecture diagram. Slide 11 covers native Kubernetes resource integrations and DNS provider choices, based on the [resource reference documentation](https://www.k8gb.io/master/resource_ref/) and [DNS integration guides](https://www.k8gb.io/master/tutorials/). The PowerPoint has six hidden appendix slides after Questions, numbered A1–A6 (physical slides 21–26): reconciliation, delegation, normal operation, failover, failback, and availability responsibilities. They are skipped during the normal slideshow and available for questions. The PDF includes these reference pages and bookmarks after the 20 main slides.
+The components slide follows the main architecture diagram. Slide 11 covers native Kubernetes resource integrations and DNS provider choices, based on the [resource reference documentation](https://www.k8gb.io/master/resource_ref/) and [DNS integration guides](https://www.k8gb.io/master/tutorials/). The PowerPoint has six hidden appendix slides after Questions, numbered A1–A6 (physical slides 22–27): reconciliation, delegation, normal operation, failover, failback, and availability responsibilities. They are skipped during the normal slideshow and available for questions. The PDF includes these reference pages and bookmarks after the 21 main slides.
+
+The closing section includes a community snapshot checked on 23 October 2026: CNCF Incubating status, seven public adopters, seven maintainers, and 1,335 GitHub stars. Sources are linked in the slide notes. The final Questions slide links to the project, GitHub, CNCF Slack, community meetings, the public adopters list, and the speaker’s LinkedIn profile.
 
 ## Try the demo preview
 
@@ -58,6 +60,9 @@ Plays a bundled real rehearsal: captured commands and highlighted YAML on the le
 
 - [k8gb.io](https://www.k8gb.io/)
 - [k8gb source](https://github.com/k8gb-io/k8gb)
+- [#k8gb on CNCF Slack](https://cloud-native.slack.com/archives/C021P656HGB)
+- [Community meeting calendar](https://zoom-lfx.platform.linuxfoundation.org/meetings/k8gb?view=month)
+- [Public adopters](https://github.com/k8gb-io/k8gb/blob/master/ADOPTERS.md)
 - [Yury Tsarev on LinkedIn](https://www.linkedin.com/in/yurytsarev/)
 - [Millennium bcp case study](https://www.cncf.io/case-studies/millennium-bcp/)
 
